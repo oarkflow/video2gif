@@ -1,0 +1,120 @@
+{
+	"server": {
+		"host": "0.0.0.0",
+		"port": 8081,
+		"read_timeout_sec": 300,
+		"write_timeout_sec": 300,
+		"max_upload_bytes": 524288000
+	},
+	"storage": {
+		"upload_dir": "./uploads",
+		"output_dir": "./outputs",
+		"temp_dir": "./tmp",
+		"max_age_hours": 24,
+		"cleanup_interval_min": 30
+	},
+	"queue": {
+		"workers": 4,
+		"max_queue_size": 100,
+		"job_timeout_sec": 600
+	},
+	"default_profile": "balanced",
+	"profiles": {
+		"fast": {
+			"name": "fast",
+			"description": "Fast conversion, larger file size",
+			"fps": 15,
+			"width": 480,
+			"height": -1,
+			"colors": 128,
+			"dither": "bayer",
+			"bayer_scale": 3,
+			"loop": 0,
+			"optimize_palette": false,
+			"stats_mode": "full",
+			"start_time": "",
+			"duration": "",
+			"speed_multiplier": 1.0
+		},
+		"balanced": {
+			"name": "balanced",
+			"description": "Good quality/size tradeoff (recommended)",
+			"fps": 20,
+			"width": 640,
+			"height": -1,
+			"colors": 256,
+			"dither": "sierra2_4a",
+			"bayer_scale": 2,
+			"loop": 0,
+			"optimize_palette": true,
+			"stats_mode": "diff",
+			"start_time": "",
+			"duration": "",
+			"speed_multiplier": 1.0
+		},
+		"quality": {
+			"name": "quality",
+			"description": "High quality, larger file",
+			"fps": 24,
+			"width": 800,
+			"height": -1,
+			"colors": 256,
+			"dither": "sierra2",
+			"bayer_scale": 1,
+			"loop": 0,
+			"optimize_palette": true,
+			"stats_mode": "diff",
+			"start_time": "",
+			"duration": "",
+			"speed_multiplier": 1.0
+		},
+		"tiny": {
+			"name": "tiny",
+			"description": "Smallest possible file size",
+			"fps": 10,
+			"width": 320,
+			"height": -1,
+			"colors": 64,
+			"dither": "none",
+			"bayer_scale": 3,
+			"loop": 0,
+			"optimize_palette": false,
+			"stats_mode": "full",
+			"start_time": "",
+			"duration": "",
+			"speed_multiplier": 1.0
+		},
+		"hd": {
+			"name": "hd",
+			"description": "Full HD quality (1080p wide GIF)",
+			"fps": 30,
+			"width": 1280,
+			"height": -1,
+			"colors": 256,
+			"dither": "sierra2",
+			"bayer_scale": 1,
+			"loop": 0,
+			"optimize_palette": true,
+			"stats_mode": "diff",
+			"start_time": "",
+			"duration": "",
+			"speed_multiplier": 1.0
+		},
+		"custom": {
+			"name": "custom",
+			"description": "Fully user-defined parameters",
+			"fps": 20,
+			"width": 640,
+			"height": -1,
+			"colors": 256,
+			"dither": "sierra2_4a",
+			"bayer_scale": 2,
+			"loop": 0,
+			"optimize_palette": true,
+			"stats_mode": "diff",
+			"start_time": "",
+			"duration": "",
+			"speed_multiplier": 1.0
+		}
+	}
+}
