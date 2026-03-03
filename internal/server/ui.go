@@ -46,11 +46,34 @@ const uiHTML = `<!DOCTYPE html>
     z-index: 0;
   }
 
-  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+  .container { margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
 
   header {
     padding: 32px 0 24px;
     border-bottom: 1px solid var(--border);
+  }
+
+  .tabs {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .tab-btn {
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    border-radius: 8px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .tab-btn.active {
+    border-color: var(--accent);
+    background: rgba(124,58,237,0.16);
+    color: var(--accent2);
   }
 
   .logo {
@@ -78,9 +101,54 @@ const uiHTML = `<!DOCTYPE html>
     0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
   }
 
-  main { padding: 32px 0; display: grid; grid-template-columns: 1fr 380px; gap: 24px; }
+  main { padding: 20px 0 32px; display: grid; grid-template-columns: 340px 1fr; gap: 18px; align-items: start; }
 
   @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+
+  #sidebarCol {
+    position: sticky;
+    top: 12px;
+  }
+
+  #mainCol {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .editor-card {
+    padding: 16px;
+  }
+
+  .shared-mode main {
+    grid-template-columns: 1fr;
+  }
+
+  .shared-mode #sidebarCol,
+  .shared-mode .tabs,
+  .shared-mode #rightPanel {
+    display: none !important;
+  }
+
+  .shared-mode .container {
+    max-width: 1680px;
+  }
+
+  .shared-mode .editor-video {
+    max-height: 72vh;
+    min-height: 460px;
+  }
+
+  .shared-mode .editor-toolbar,
+  .shared-mode .timeline-wrap,
+  .shared-mode .cut-controls,
+  .shared-mode .segment-title,
+  .shared-mode .segment-list,
+  .shared-mode .comment-tools,
+  .shared-mode .comment-actions {
+    display: none !important;
+  }
 
   /* Card */
   .card {
@@ -148,10 +216,58 @@ const uiHTML = `<!DOCTYPE html>
     font-size: 0.75rem;
     color: var(--muted);
     font-family: 'JetBrains Mono', monospace;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
   }
 
   .recorder-status.recording {
-    color: #f87171;
+    color: #fecaca;
+    border-color: rgba(239,68,68,0.7);
+    background: rgba(239,68,68,0.16);
+  }
+
+  .rec-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #64748b;
+    box-shadow: 0 0 0 0 rgba(100,116,139,0.6);
+  }
+
+  .recorder-status.recording .rec-indicator {
+    background: #ef4444;
+    box-shadow: 0 0 0 0 rgba(239,68,68,0.85);
+    animation: recPulse 1.1s infinite;
+  }
+
+  @keyframes recPulse {
+    0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(239,68,68,0); }
+    100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+  }
+
+  .save-video-wide {
+    width: 100%;
+    margin: 8px 0 12px;
+    padding: 11px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(16,185,129,0.7);
+    background: linear-gradient(90deg, rgba(16,185,129,0.22), rgba(5,150,105,0.22));
+    color: #6ee7b7;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .save-video-wide:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .save-video-wide:hover:not(:disabled) {
+    border-color: rgba(16,185,129,0.95);
+    background: linear-gradient(90deg, rgba(16,185,129,0.3), rgba(5,150,105,0.3));
   }
 
   /* File preview */
@@ -182,9 +298,99 @@ const uiHTML = `<!DOCTYPE html>
 
   .editor-video {
     width: 100%;
-    max-height: 280px;
+    max-height: 520px;
+    min-height: 320px;
     border-radius: 8px;
     background: #000;
+    object-fit: contain;
+  }
+
+  .video-stage {
+    position: relative;
+  }
+
+  .video-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border-radius: 8px;
+    cursor: crosshair;
+    pointer-events: none;
+  }
+
+  .video-overlay.capture {
+    pointer-events: auto;
+  }
+
+  .comment-dot {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: #f59e0b;
+    border: 1px solid #fff;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 8px rgba(245,158,11,0.8);
+  }
+
+  .comment-dot.active {
+    background: #34d399;
+    box-shadow: 0 0 12px rgba(52,211,153,0.85);
+  }
+
+  .comment-layout {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 12px;
+  }
+
+  @media (max-width: 900px) {
+    .comment-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .comment-sidebar {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    background: #0e1320;
+    min-height: 120px;
+  }
+
+  .comment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 210px;
+    overflow: auto;
+    margin-top: 8px;
+  }
+
+  .comment-item {
+    border: 1px solid var(--border);
+    background: rgba(245,158,11,0.08);
+    color: #fcd34d;
+    border-radius: 6px;
+    padding: 8px;
+    font-size: 0.74rem;
+    font-family: 'JetBrains Mono', monospace;
+    cursor: pointer;
+  }
+
+  .comment-item.active {
+    border-color: rgba(52,211,153,0.8);
+    background: rgba(52,211,153,0.1);
+    color: #6ee7b7;
+  }
+
+  .comment-tools {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: center;
   }
 
   .editor-toolbar {
@@ -505,6 +711,29 @@ const uiHTML = `<!DOCTYPE html>
     gap: 10px;
   }
 
+  .share-panel {
+    margin-top: 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface2);
+    padding: 10px;
+  }
+
+  .share-line {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .share-label {
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+
   @media (max-width: 800px) {
     .action-row {
       grid-template-columns: 1fr;
@@ -668,16 +897,22 @@ const uiHTML = `<!DOCTYPE html>
     </div>
   </header>
 
+  <div class="tabs">
+    <button class="tab-btn active" id="tabScreenShare" onclick="setTab('screenshare')">1) ScreenShare + Notes</button>
+    <button class="tab-btn" id="tabGif" onclick="setTab('video2gif')">2) Video2GIF</button>
+  </div>
+
   <main>
-    <!-- Left: Convert panel -->
-    <div>
+    <div id="sidebarCol">
       <div class="card">
         <div class="card-title">Upload &amp; Configure</div>
 
         <div class="recorder-row">
           <button class="chip-btn" type="button" id="recordStartBtn" onclick="startScreenRecording()">Start Recording</button>
           <button class="chip-btn danger" type="button" id="recordStopBtn" onclick="stopScreenRecording()" disabled>Stop Recording</button>
-          <span class="recorder-status" id="recorderStatus">Recorder idle</span>
+          <span class="recorder-status" id="recorderStatus">
+            <span class="rec-indicator"></span>
+          </span>
         </div>
 
         <div class="dropzone" id="dropzone">
@@ -696,44 +931,18 @@ const uiHTML = `<!DOCTYPE html>
           <div class="remove-btn" onclick="clearFile()" title="Remove">✕</div>
         </div>
 
-        <div class="editor-wrap" id="editorWrap">
-          <video id="editorVideo" class="editor-video" controls preload="metadata"></video>
-          <div class="editor-toolbar">
-            <button class="chip-btn" type="button" onclick="markCutStart()">Mark Cut Start</button>
-            <button class="chip-btn" type="button" onclick="markCutEnd()">Mark Cut End</button>
-            <button class="chip-btn warn" type="button" onclick="cutMarkedRange()">Cut Marked Range</button>
-            <button class="chip-btn danger" type="button" onclick="resetCuts()">Reset Cuts</button>
-            <span class="editor-time" id="editorNow">00:00.00 / 00:00.00</span>
+        <div class="share-panel" id="shareRow">
+          <div class="share-label">Shareable Link</div>
+          <div class="share-line">
+            <button class="chip-btn" id="shareBtn" onclick="createShareLink()" disabled>Create Link</button>
+            <input type="text" id="shareLink" readonly placeholder="Click Create Link to generate URL" />
+            <button class="chip-btn" type="button" onclick="copyShareLink()">Copy</button>
           </div>
-
-          <div class="timeline-wrap">
-            <div class="timeline-track" id="timelineTrack">
-              <div class="timeline-playhead" id="timelinePlayhead"></div>
-            </div>
-            <input class="timeline-scrub" type="range" id="timelineScrub" min="0" max="0" step="0.01" value="0">
-          </div>
-
-          <div class="cut-controls">
-            <div class="param-group">
-              <label>Cut Start (s)</label>
-              <input type="number" id="cutStart" min="0" step="0.01" value="0">
-            </div>
-            <div class="param-group">
-              <label>Cut End (s)</label>
-              <input type="number" id="cutEnd" min="0" step="0.01" value="0">
-            </div>
-            <button class="chip-btn warn" type="button" onclick="addCutFromInputs()">Add Cut Range</button>
-          </div>
-
-          <div class="segment-title">
-            <span>Cut Ranges (Multi-Select)</span>
-            <button class="chip-btn danger" type="button" onclick="resetCuts()">Reset All</button>
-          </div>
-          <div class="segment-list" id="segmentList"></div>
         </div>
+        <button class="save-video-wide" type="button" id="saveScreenBtn" onclick="saveEditedVideo()" disabled>Save Video</button>
       </div>
 
-      <div class="card" style="margin-top:16px">
+      <div class="card" style="margin-top:16px" id="gifCard">
         <div class="card-title">Quality Profile</div>
 
         <div class="profiles-grid" id="profilesGrid"></div>
@@ -815,7 +1024,6 @@ const uiHTML = `<!DOCTYPE html>
             Save Edited Video
           </button>
         </div>
-
         <div class="progress-wrap" id="progressWrap">
           <div class="progress-label">
             <span id="progressStatus">Processing...</span>
@@ -827,8 +1035,68 @@ const uiHTML = `<!DOCTYPE html>
       </div>
     </div>
 
-    <!-- Right: Jobs + Config -->
-    <div style="display:flex;flex-direction:column;gap:16px">
+    <div id="mainCol">
+      <div class="card editor-card">
+        <div class="card-title">Video Editor</div>
+        <div class="editor-wrap" id="editorWrap">
+          <div class="comment-layout">
+            <div>
+              <div class="video-stage">
+                <video id="editorVideo" class="editor-video" controls preload="metadata"></video>
+                <div id="videoOverlay" class="video-overlay"></div>
+              </div>
+
+              <div class="editor-toolbar">
+                <button class="chip-btn" type="button" onclick="markCutStart()">Mark Cut Start</button>
+                <button class="chip-btn" type="button" onclick="markCutEnd()">Mark Cut End</button>
+                <button class="chip-btn warn" type="button" onclick="cutMarkedRange()">Cut Marked Range</button>
+                <button class="chip-btn danger" type="button" onclick="resetCuts()">Reset Cuts</button>
+                <span class="editor-time" id="editorNow">00:00.00 / 00:00.00</span>
+              </div>
+            </div>
+
+            <div class="comment-sidebar">
+              <div style="font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em">Notes / Comments</div>
+              <div class="comment-tools">
+                <input type="text" id="commentText" placeholder="Comment text..." />
+                <button class="chip-btn warn" type="button" onclick="toggleCommentCapture()">Pick Point</button>
+              </div>
+              <div class="comment-actions" style="margin-top:8px;display:flex;gap:8px">
+                <button class="chip-btn" type="button" onclick="addCommentAtCurrent()">Add at Current Time</button>
+                <button class="chip-btn danger" type="button" onclick="clearComments()">Clear</button>
+              </div>
+              <div class="comment-list" id="commentList"></div>
+            </div>
+          </div>
+
+          <div class="timeline-wrap">
+            <div class="timeline-track" id="timelineTrack">
+              <div class="timeline-playhead" id="timelinePlayhead"></div>
+            </div>
+            <input class="timeline-scrub" type="range" id="timelineScrub" min="0" max="0" step="0.01" value="0">
+          </div>
+
+          <div class="cut-controls">
+            <div class="param-group">
+              <label>Cut Start (s)</label>
+              <input type="number" id="cutStart" min="0" step="0.01" value="0">
+            </div>
+            <div class="param-group">
+              <label>Cut End (s)</label>
+              <input type="number" id="cutEnd" min="0" step="0.01" value="0">
+            </div>
+            <button class="chip-btn warn" type="button" onclick="addCutFromInputs()">Add Cut Range</button>
+          </div>
+
+          <div class="segment-title">
+            <span>Cut Ranges (Multi-Select)</span>
+            <button class="chip-btn danger" type="button" onclick="resetCuts()">Reset All</button>
+          </div>
+          <div class="segment-list" id="segmentList"></div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px" id="rightPanel">
       <div class="card">
         <div class="card-title" style="justify-content:space-between;display:flex;align-items:center">
           <span>Jobs</span>
@@ -844,6 +1112,7 @@ const uiHTML = `<!DOCTYPE html>
         <div class="config-panel" id="configPanel">
           <div style="color:var(--muted);font-size:0.8rem">Loading...</div>
         </div>
+      </div>
       </div>
     </div>
   </main>
@@ -869,12 +1138,20 @@ let mediaRecorder = null;
 let recordedChunks = [];
 let recorderTimer = null;
 let recorderStartedAt = 0;
+let activeTab = 'screenshare';
+let comments = [];
+let commentCaptureMode = false;
+let pendingCommentPoint = null;
+let activeCommentId = '';
+let pausedCommentIDs = new Set();
 
 // ── Init ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   await loadProfiles();
   await loadJobs();
   await loadConfig();
+  setTab('screenshare');
+  await maybeLoadSharedSession();
   checkHealth();
   setInterval(checkHealth, 15000);
   setInterval(loadJobs, 5000);
@@ -949,6 +1226,60 @@ function syncSlider(sliderId, valId) {
   const el = document.getElementById(valId);
   if (valId === 'speedVal') el.textContent = v + '×';
   else el.textContent = v;
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────
+function setTab(name) {
+  activeTab = name;
+  const isScreen = name === 'screenshare';
+  document.getElementById('tabScreenShare').classList.toggle('active', isScreen);
+  document.getElementById('tabGif').classList.toggle('active', !isScreen);
+  document.getElementById('gifCard').style.display = isScreen ? 'none' : 'block';
+  document.getElementById('rightPanel').style.display = isScreen ? 'none' : 'flex';
+  document.getElementById('shareRow').style.display = isScreen ? 'block' : 'none';
+  document.getElementById('convertBtn').style.display = isScreen ? 'none' : 'block';
+  document.getElementById('saveBtn').style.display = isScreen ? 'block' : 'none';
+  document.getElementById('saveScreenBtn').style.display = isScreen ? 'block' : 'none';
+}
+
+async function maybeLoadSharedSession() {
+  const id = new URLSearchParams(window.location.search).get('share');
+  if (!id) return;
+  try {
+    const r = await fetch(API + '/share/' + id);
+    if (!r.ok) throw new Error('share not found');
+    const d = await r.json();
+    setTab('screenshare');
+    comments = (d.comments || []).map(c => ({
+      id: c.id || randomID(),
+      time: c.time || 0,
+      x: c.x || 0.5,
+      y: c.y || 0.5,
+      text: c.text || '',
+    }));
+    cutRanges = (d.cut_ranges || []).map(c => ({ start: c.start || 0, end: c.end || 0 }));
+    const wrap = document.getElementById('editorWrap');
+    const video = document.getElementById('editorVideo');
+    document.body.classList.add('shared-mode');
+    wrap.style.display = 'block';
+    document.getElementById('previewName').textContent = d.file_name || 'shared-video';
+    document.getElementById('previewMeta').textContent = 'Shared session';
+    document.getElementById('filePreview').style.display = 'flex';
+    video.src = d.video_url;
+    document.getElementById('convertBtn').disabled = true;
+    document.getElementById('saveBtn').disabled = true;
+    document.getElementById('saveScreenBtn').disabled = true;
+    document.getElementById('shareBtn').disabled = true;
+    document.getElementById('recordStartBtn').disabled = true;
+    document.getElementById('recordStopBtn').disabled = true;
+    renderSegments();
+    renderCommentDots();
+    renderComments();
+    toast('Loaded shared session', 'success');
+  } catch (e) {
+    document.body.classList.remove('shared-mode');
+    toast('Could not load shared session: ' + e.message, 'error');
+  }
 }
 
 // ── Screen Recorder ───────────────────────────────────────────────────────
@@ -1063,7 +1394,8 @@ function toggleRecorderButtons(isRecording) {
 
 function setRecorderStatus(text, recording) {
   const el = document.getElementById('recorderStatus');
-  el.textContent = text;
+  const textEl = document.getElementById('recorderStatusText');
+  if (textEl) textEl.textContent = text;
   el.classList.toggle('recording', !!recording);
 }
 
@@ -1088,6 +1420,7 @@ function setupDragDrop() {
   const scrub = document.getElementById('timelineScrub');
   const video = document.getElementById('editorVideo');
   const track = document.getElementById('timelineTrack');
+  const overlay = document.getElementById('videoOverlay');
 
   dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
   dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
@@ -1114,6 +1447,8 @@ function setupDragDrop() {
     markEnd = null;
     renderTimeline();
     renderSegments();
+    renderCommentDots();
+    renderComments();
     updateEditorHUD(0);
     ensurePlayableDuration(video);
   });
@@ -1133,12 +1468,38 @@ function setupDragDrop() {
 
   video.addEventListener('timeupdate', () => {
     if (!videoDuration) return;
+    maybePauseForComment(video.currentTime);
     if (cutPreview && video.currentTime >= cutPreview.end) {
       video.pause();
       stopCutPreview();
     }
     scrub.value = video.currentTime.toFixed(2);
     updateEditorHUD(video.currentTime);
+    renderCommentDots();
+  });
+
+  video.addEventListener('seeked', () => {
+    pausedCommentIDs = new Set([...pausedCommentIDs].filter(id => {
+      const c = comments.find(x => x.id === id);
+      return c && c.time < video.currentTime;
+    }));
+  });
+
+  overlay.addEventListener('click', (e) => {
+    if (!commentCaptureMode) return;
+    const box = getVideoContentBoxInOverlay();
+    if (!box.width || !box.height) return;
+    const rect = overlay.getBoundingClientRect();
+    const px = e.clientX - rect.left - box.left;
+    const py = e.clientY - rect.top - box.top;
+    pendingCommentPoint = {
+      x: clamp((px / box.width), 0, 1),
+      y: clamp((py / box.height), 0, 1),
+    };
+    overlay.classList.remove('capture');
+    commentCaptureMode = false;
+    toast('Point selected. Click "Add at Current Time".', 'success');
+    renderCommentDots();
   });
 
   document.addEventListener('mousemove', handleCutDrag);
@@ -1148,12 +1509,18 @@ function setupDragDrop() {
 
 function handleFile(file) {
   selectedFile = file;
+  comments = [];
+  pendingCommentPoint = null;
+  activeCommentId = '';
+  pausedCommentIDs = new Set();
   document.getElementById('previewName').textContent = file.name;
   document.getElementById('previewMeta').textContent =
     formatBytes(file.size) + ' · ' + (file.type || 'video');
   document.getElementById('filePreview').style.display = 'flex';
   document.getElementById('convertBtn').disabled = false;
   document.getElementById('saveBtn').disabled = false;
+  document.getElementById('saveScreenBtn').disabled = false;
+  document.getElementById('shareBtn').disabled = false;
   initEditor(file);
 }
 
@@ -1164,13 +1531,21 @@ function clearFile() {
   document.getElementById('filePreview').style.display = 'none';
   document.getElementById('convertBtn').disabled = true;
   document.getElementById('saveBtn').disabled = true;
+  document.getElementById('saveScreenBtn').disabled = true;
+  document.getElementById('shareBtn').disabled = true;
   document.getElementById('progressWrap').style.display = 'none';
   document.getElementById('editorWrap').style.display = 'none';
   document.getElementById('segmentList').innerHTML = '';
   cutRanges = [];
+  comments = [];
+  pendingCommentPoint = null;
+  activeCommentId = '';
+  pausedCommentIDs = new Set();
   markStart = null;
   markEnd = null;
   videoDuration = 0;
+  renderCommentDots();
+  renderComments();
   if (editorObjectURL) {
     URL.revokeObjectURL(editorObjectURL);
     editorObjectURL = '';
@@ -1210,6 +1585,167 @@ async function probeVideoDuration(file) {
       updateEditorHUD(0);
     }
   } catch {}
+}
+
+function toggleCommentCapture() {
+  const overlay = document.getElementById('videoOverlay');
+  commentCaptureMode = !commentCaptureMode;
+  overlay.classList.toggle('capture', commentCaptureMode);
+  toast(commentCaptureMode ? 'Click on video to place note point' : 'Point selection cancelled', 'success');
+}
+
+function addCommentAtCurrent() {
+  const video = document.getElementById('editorVideo');
+  const text = (document.getElementById('commentText').value || '').trim();
+  if (!text) {
+    toast('Enter a comment first', 'error');
+    return;
+  }
+  if (!video || !Number.isFinite(video.currentTime)) {
+    toast('Video is not ready', 'error');
+    return;
+  }
+  const point = pendingCommentPoint || { x: 0.5, y: 0.5 };
+  comments.push({
+    id: randomID(),
+    time: Number(video.currentTime.toFixed(3)),
+    x: Number(point.x.toFixed(4)),
+    y: Number(point.y.toFixed(4)),
+    text,
+  });
+  comments.sort((a, b) => a.time - b.time);
+  pendingCommentPoint = null;
+  document.getElementById('commentText').value = '';
+  pausedCommentIDs = new Set();
+  renderComments();
+  renderCommentDots();
+}
+
+function clearComments() {
+  comments = [];
+  activeCommentId = '';
+  pausedCommentIDs = new Set();
+  renderComments();
+  renderCommentDots();
+}
+
+function renderComments() {
+  const list = document.getElementById('commentList');
+  if (!comments.length) {
+    list.innerHTML = '<div class="segment-empty">No notes yet.</div>';
+    return;
+  }
+  list.innerHTML = comments.map(c =>
+    '<div class="comment-item' + (c.id === activeCommentId ? ' active' : '') + '" onclick="jumpToComment(\'' + c.id + '\')">' +
+      formatTime(c.time) + ' — ' + escHtml(c.text) +
+    '</div>'
+  ).join('');
+}
+
+function renderCommentDots() {
+  const overlay = document.getElementById('videoOverlay');
+  if (!overlay) return;
+  const box = getVideoContentBoxInOverlay();
+  const points = comments.map(c => {
+    const leftPct = ((box.left + (c.x * box.width)) / box.overlayWidth) * 100;
+    const topPct = ((box.top + (c.y * box.height)) / box.overlayHeight) * 100;
+    return '<span class="comment-dot' + (c.id === activeCommentId ? ' active' : '') + '" style="left:' + leftPct + '%;top:' + topPct + '%"></span>';
+  }).join('');
+  let pending = '';
+  if (pendingCommentPoint) {
+    const leftPct = ((box.left + (pendingCommentPoint.x * box.width)) / box.overlayWidth) * 100;
+    const topPct = ((box.top + (pendingCommentPoint.y * box.height)) / box.overlayHeight) * 100;
+    pending = '<span class="comment-dot active" style="left:' + leftPct + '%;top:' + topPct + '%"></span>';
+  }
+  overlay.innerHTML = points + pending;
+}
+
+function getVideoContentBoxInOverlay() {
+  const overlay = document.getElementById('videoOverlay');
+  const video = document.getElementById('editorVideo');
+  const overlayWidth = Math.max(1, overlay?.clientWidth || 1);
+  const overlayHeight = Math.max(1, overlay?.clientHeight || 1);
+  const sourceWidth = Math.max(1, video?.videoWidth || overlayWidth);
+  const sourceHeight = Math.max(1, video?.videoHeight || overlayHeight);
+  const scale = Math.min(overlayWidth / sourceWidth, overlayHeight / sourceHeight);
+  const width = sourceWidth * scale;
+  const height = sourceHeight * scale;
+  const left = (overlayWidth - width) / 2;
+  const top = (overlayHeight - height) / 2;
+  return { left, top, width, height, overlayWidth, overlayHeight };
+}
+
+function jumpToComment(id) {
+  const c = comments.find(x => x.id === id);
+  const video = document.getElementById('editorVideo');
+  if (!c || !video) return;
+  video.currentTime = c.time;
+  activeCommentId = c.id;
+  renderComments();
+  renderCommentDots();
+}
+
+function maybePauseForComment(currentTime) {
+  const video = document.getElementById('editorVideo');
+  if (!video || video.paused) return;
+  for (const c of comments) {
+    if (pausedCommentIDs.has(c.id)) continue;
+    if (currentTime >= c.time && currentTime <= c.time + 0.25) {
+      pausedCommentIDs.add(c.id);
+      activeCommentId = c.id;
+      renderComments();
+      renderCommentDots();
+      video.pause();
+      setTimeout(() => {
+        if (!video.paused) return;
+        video.play().catch(() => {});
+      }, 1000);
+      break;
+    }
+  }
+}
+
+async function createShareLink() {
+  if (!selectedFile) {
+    toast('Select or record a video first', 'error');
+    return;
+  }
+  const btn = document.getElementById('shareBtn');
+  btn.disabled = true;
+  btn.textContent = 'Creating...';
+  const form = new FormData();
+  form.append('video', selectedFile, selectedFile.name || 'recording.webm');
+  form.append('cut_ranges', JSON.stringify(cutRanges));
+  form.append('comments', JSON.stringify(comments));
+  if (videoDuration > 0) {
+    form.append('duration_hint', String(Number(videoDuration.toFixed(3))));
+  }
+  try {
+    const r = await fetch(API + '/share', { method: 'POST', body: form });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    document.getElementById('shareLink').value = d.share_url || '';
+    if (d.share_url) {
+      navigator.clipboard?.writeText(d.share_url).catch(() => {});
+    }
+    toast('Share link created and copied', 'success');
+  } catch (e) {
+    toast('Create share link failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Create Share Link';
+  }
+}
+
+function copyShareLink() {
+  const link = document.getElementById('shareLink').value.trim();
+  if (!link) {
+    toast('No share link available yet', 'error');
+    return;
+  }
+  navigator.clipboard?.writeText(link)
+    .then(() => toast('Share link copied', 'success'))
+    .catch(() => toast('Copy failed. You can copy manually from the field.', 'error'));
 }
 
 function ensurePlayableDuration(video) {
@@ -1516,8 +2052,11 @@ function updateEditorHUD(time) {
 async function saveEditedVideo() {
   if (!selectedFile) return;
   const btn = document.getElementById('saveBtn');
+  const screenBtn = document.getElementById('saveScreenBtn');
   btn.disabled = true;
+  screenBtn.disabled = true;
   btn.textContent = 'Saving...';
+  screenBtn.textContent = 'Saving...';
 
   const cutPayload = cutRanges.map(s => ({
     start: Number(s.start.toFixed(3)),
@@ -1546,7 +2085,9 @@ async function saveEditedVideo() {
     toast('Save failed: ' + e.message, 'error');
   } finally {
     btn.disabled = false;
+    screenBtn.disabled = false;
     btn.textContent = 'Save Edited Video';
+    screenBtn.textContent = 'Save Video';
   }
 }
 
@@ -1555,8 +2096,10 @@ async function startConvert() {
 
   const btn = document.getElementById('convertBtn');
   const saveBtn = document.getElementById('saveBtn');
+  const saveScreenBtn = document.getElementById('saveScreenBtn');
   btn.disabled = true;
   saveBtn.disabled = true;
+  saveScreenBtn.disabled = true;
   btn.textContent = 'Uploading...';
 
   const params = {
@@ -1588,6 +2131,7 @@ async function startConvert() {
       toast('Upload failed: ' + (job.error || r.status), 'error');
       btn.disabled = false;
       saveBtn.disabled = false;
+      saveScreenBtn.disabled = false;
       btn.textContent = 'Convert to GIF';
       return;
     }
@@ -1600,6 +2144,7 @@ async function startConvert() {
     toast('Network error: ' + e.message, 'error');
     btn.disabled = false;
     saveBtn.disabled = false;
+    saveScreenBtn.disabled = false;
     btn.textContent = 'Convert to GIF';
   }
 }
@@ -1620,6 +2165,7 @@ function pollJob(id) {
         document.getElementById('convertBtn').textContent = 'Convert to GIF';
         document.getElementById('convertBtn').disabled = false;
         document.getElementById('saveBtn').disabled = false;
+        document.getElementById('saveScreenBtn').disabled = false;
         loadJobs();
         setTimeout(() => triggerDownload(id, job), 500);
       } else if (job.status === 'failed') {
@@ -1629,6 +2175,7 @@ function pollJob(id) {
         document.getElementById('convertBtn').textContent = 'Convert to GIF';
         document.getElementById('convertBtn').disabled = false;
         document.getElementById('saveBtn').disabled = false;
+        document.getElementById('saveScreenBtn').disabled = false;
         loadJobs();
       }
     } catch {}
@@ -1762,6 +2309,10 @@ function downloadBlob(blob, filename) {
 function parseDownloadFilename(contentDisposition) {
   const m = /filename=\"?([^\";]+)\"?/i.exec(contentDisposition || '');
   return m ? m[1] : '';
+}
+
+function randomID() {
+  return Math.random().toString(36).slice(2, 10);
 }
 
 function escHtml(s) {

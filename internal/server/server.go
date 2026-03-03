@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -14,6 +15,8 @@ type Server struct {
 	cfg        *config.Config
 	queue      *jobs.Queue
 	configPath string
+	shareMu    sync.RWMutex
+	shares     map[string]*ShareSession
 }
 
 // New creates a server.
@@ -22,6 +25,7 @@ func New(cfg *config.Config, configPath string) *Server {
 		cfg:        cfg,
 		queue:      jobs.New(cfg),
 		configPath: configPath,
+		shares:     make(map[string]*ShareSession),
 	}
 }
 
@@ -50,6 +54,9 @@ func (s *Server) Router() http.Handler {
 	api.HandleFunc("/stats", s.handleStats).Methods("GET")
 	api.HandleFunc("/probe", s.handleProbe).Methods("POST")
 	api.HandleFunc("/save-edited", s.handleSaveEdited).Methods("POST")
+	api.HandleFunc("/share", s.handleCreateShare).Methods("POST")
+	api.HandleFunc("/share/{id}", s.handleGetShareMeta).Methods("GET")
+	api.HandleFunc("/share/{id}/video", s.handleGetShareVideo).Methods("GET")
 
 	// Serve the single-page web UI
 	r.PathPrefix("/").HandlerFunc(s.handleUI)

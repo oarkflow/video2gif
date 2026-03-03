@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -364,13 +366,263 @@ func (s *Server) handleSaveEdited(w http.ResponseWriter, r *http.Request) {
 		base = "recording"
 	}
 	downloadName := base + "_edited.mp4"
-	w.Header().Set("Content-Type", "video/mp4")
+	ct := mime.TypeByExtension(strings.ToLower(filepath.Ext(downloadName)))
+	if ct == "" {
+		ct = "application/octet-stream"
+	}
+	w.Header().Set("Content-Type", ct)
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, downloadName))
 	w.Header().Set("Cache-Control", "no-cache")
 	if st, err := out.Stat(); err == nil {
 		w.Header().Set("Content-Length", fmt.Sprintf("%d", st.Size()))
 	}
 	http.ServeContent(w, r, downloadName, time.Now(), out)
+}
+
+func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, s.cfg.Server.MaxUploadBytes)
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		jsonError(w, "request too large or malformed", http.StatusBadRequest)
+		return
+	}
+
+	file, header, err := r.FormFile("video")
+	if err != nil {
+		jsonError(w, "missing 'video' field in form data", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	if ext == "" {
+		ext = ".webm"
+	}
+	if !allowedExt[ext] {
+		jsonError(w, fmt.Sprintf("unsupported file extension: %s", ext), http.StatusBadRequest)
+		return
+	}
+
+	var cutRanges []config.ClipSegment
+	if raw := r.FormValue("cut_ranges"); raw != "" {
+		if err := json.Unmarshal([]byte(raw), &cutRanges); err != nil {
+			jsonError(w, "invalid cut_ranges JSON: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+	var durationHint float64
+	if raw := strings.TrimSpace(r.FormValue("duration_hint")); raw != "" {
+		if v, err := strconv.ParseFloat(raw, 64); err == nil && v > 0 {
+			durationHint = v
+		}
+	}
+	var comments []ShareComment
+	if raw := r.FormValue("comments"); raw != "" {
+		if err := json.Unmarshal([]byte(raw), &comments); err != nil {
+			jsonError(w, "invalid comments JSON: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+
+	if err := os.MkdirAll(s.cfg.Storage.TempDir, 0755); err != nil {
+		jsonError(w, "failed to create temp dir", http.StatusInternalServerError)
+		return
+	}
+
+	id := uuid.New().String()
+	inputPath := filepath.Join(s.cfg.Storage.TempDir, "share_src_"+id+ext)
+	videoPath := filepath.Join(s.cfg.Storage.TempDir, "share_"+id+".mp4")
+	dst, err := os.Create(inputPath)
+	if err != nil {
+		jsonError(w, "failed to create share file", http.StatusInternalServerError)
+		return
+	}
+	if _, err := io.Copy(dst, file); err != nil {
+		dst.Close()
+		os.Remove(inputPath)
+		jsonError(w, "failed to write share file", http.StatusInternalServerError)
+		return
+	}
+	dst.Close()
+	defer os.Remove(inputPath)
+
+	if err := converter.SaveEditedVideo(r.Context(), inputPath, videoPath, cutRanges, durationHint); err != nil {
+		os.Remove(videoPath)
+		jsonError(w, "failed to build shared video: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	inputDuration := durationHint
+	if info, err := converter.ProbeVideo(r.Context(), inputPath); err == nil && info != nil && info.Duration > 0 {
+		inputDuration = info.Duration
+	}
+	sharedComments := remapCommentsForCuts(comments, cutRanges, inputDuration)
+
+	base := strings.TrimSuffix(header.Filename, filepath.Ext(header.Filename))
+	if strings.TrimSpace(base) == "" {
+		base = "shared-video"
+	}
+	sharedFileName := base + "_shared.mp4"
+
+	sess := &ShareSession{
+		ID:        id,
+		FileName:  sharedFileName,
+		VideoPath: videoPath,
+		CutRanges: nil,
+		Comments:  sharedComments,
+		CreatedAt: time.Now(),
+	}
+	s.shareMu.Lock()
+	s.shares[id] = sess
+	s.shareMu.Unlock()
+
+	baseURL := "http://" + r.Host
+	if r.TLS != nil {
+		baseURL = "https://" + r.Host
+	}
+
+	jsonOK(w, map[string]any{
+		"id":        id,
+		"share_url": baseURL + "/?share=" + id,
+	}, http.StatusOK)
+}
+
+func (s *Server) handleGetShareMeta(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	s.shareMu.RLock()
+	sess, ok := s.shares[id]
+	s.shareMu.RUnlock()
+	if !ok {
+		jsonError(w, "share not found", http.StatusNotFound)
+		return
+	}
+
+	baseURL := "http://" + r.Host
+	if r.TLS != nil {
+		baseURL = "https://" + r.Host
+	}
+	jsonOK(w, map[string]any{
+		"id":         sess.ID,
+		"file_name":  sess.FileName,
+		"cut_ranges": sess.CutRanges,
+		"comments":   sess.Comments,
+		"video_url":  baseURL + "/api/v1/share/" + id + "/video",
+		"created_at": sess.CreatedAt,
+	}, http.StatusOK)
+}
+
+func (s *Server) handleGetShareVideo(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	s.shareMu.RLock()
+	sess, ok := s.shares[id]
+	s.shareMu.RUnlock()
+	if !ok {
+		jsonError(w, "share not found", http.StatusNotFound)
+		return
+	}
+	f, err := os.Open(sess.VideoPath)
+	if err != nil {
+		jsonError(w, "shared video not found", http.StatusNotFound)
+		return
+	}
+	defer f.Close()
+
+	downloadName := strings.TrimSpace(sess.FileName)
+	if downloadName == "" {
+		downloadName = "shared-video.webm"
+	}
+	ct := mime.TypeByExtension(strings.ToLower(filepath.Ext(downloadName)))
+	if ct == "" {
+		ct = "application/octet-stream"
+	}
+	w.Header().Set("Content-Type", ct)
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, downloadName))
+	w.Header().Set("Cache-Control", "no-cache")
+	http.ServeContent(w, r, downloadName, sess.CreatedAt, f)
+}
+
+func remapCommentsForCuts(comments []ShareComment, cuts []config.ClipSegment, duration float64) []ShareComment {
+	if len(comments) == 0 {
+		return nil
+	}
+	norm := normalizeClipSegments(cuts, duration)
+	if len(norm) == 0 {
+		out := make([]ShareComment, len(comments))
+		copy(out, comments)
+		return out
+	}
+	out := make([]ShareComment, 0, len(comments))
+	for _, c := range comments {
+		newTime, ok := remapTimeAfterCuts(c.Time, norm)
+		if !ok {
+			continue
+		}
+		cc := c
+		cc.Time = newTime
+		out = append(out, cc)
+	}
+	return out
+}
+
+func remapTimeAfterCuts(t float64, cuts []config.ClipSegment) (float64, bool) {
+	removed := 0.0
+	for _, c := range cuts {
+		if t < c.Start {
+			break
+		}
+		if t >= c.End {
+			removed += c.End - c.Start
+			continue
+		}
+		if t >= c.Start && t < c.End {
+			return 0, false
+		}
+	}
+	v := t - removed
+	if v < 0 {
+		v = 0
+	}
+	return v, true
+}
+
+func normalizeClipSegments(in []config.ClipSegment, duration float64) []config.ClipSegment {
+	if len(in) == 0 {
+		return nil
+	}
+	segs := make([]config.ClipSegment, 0, len(in))
+	for _, s := range in {
+		start, end := s.Start, s.End
+		if end <= start {
+			continue
+		}
+		if duration > 0 {
+			if start < 0 {
+				start = 0
+			}
+			if end > duration {
+				end = duration
+			}
+		}
+		if end > start {
+			segs = append(segs, config.ClipSegment{Start: start, End: end})
+		}
+	}
+	if len(segs) == 0 {
+		return nil
+	}
+	sort.Slice(segs, func(i, j int) bool { return segs[i].Start < segs[j].Start })
+	merged := []config.ClipSegment{segs[0]}
+	for i := 1; i < len(segs); i++ {
+		last := &merged[len(merged)-1]
+		cur := segs[i]
+		if cur.Start <= last.End {
+			if cur.End > last.End {
+				last.End = cur.End
+			}
+		} else {
+			merged = append(merged, cur)
+		}
+	}
+	return merged
 }
 
 func (s *Server) handleUI(w http.ResponseWriter, r *http.Request) {
