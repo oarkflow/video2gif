@@ -10,6 +10,7 @@
 		"upload_dir": "./uploads",
 		"output_dir": "./outputs",
 		"temp_dir": "./tmp",
+		"share_dir": "./shares",
 		"max_age_hours": 24,
 		"cleanup_interval_min": 30
 	},
@@ -17,6 +18,17 @@
 		"workers": 4,
 		"max_queue_size": 100,
 		"job_timeout_sec": 600
+	},
+	"auth": {
+		"enabled": true,
+		"password_sha256": "76950c0c7010efb3c1fd2aaddf8389d8668aa007715c1e887f0b6c48b876fd19",
+		"session_ttl_hours": 12
+	},
+	"sharing": {
+		"enabled": true,
+		"public_view": true,
+		"default_expiry_hours": 168,
+		"max_expiry_hours": 720
 	},
 	"default_profile": "balanced",
 	"profiles": {

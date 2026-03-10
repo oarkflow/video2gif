@@ -272,6 +272,10 @@ func (s *Server) handleProbe(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "failed to create temp dir", http.StatusInternalServerError)
 		return
 	}
+	if err := os.MkdirAll(s.cfg.Storage.ShareDir, 0755); err != nil {
+		jsonError(w, "failed to create share dir", http.StatusInternalServerError)
+		return
+	}
 
 	dst, err := os.Create(tmpPath)
 	if err != nil {
@@ -380,6 +384,10 @@ func (s *Server) handleSaveEdited(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
+	if !s.cfg.Sharing.Enabled || s.shares == nil {
+		jsonError(w, "sharing is disabled", http.StatusServiceUnavailable)
+		return
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, s.cfg.Server.MaxUploadBytes)
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		jsonError(w, "request too large or malformed", http.StatusBadRequest)
@@ -422,6 +430,12 @@ func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	createdBy := strings.TrimSpace(r.FormValue("created_by"))
+	expiresAt, err := s.resolveShareExpiry(r.FormValue("expires_in_hours"))
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	if err := os.MkdirAll(s.cfg.Storage.TempDir, 0755); err != nil {
 		jsonError(w, "failed to create temp dir", http.StatusInternalServerError)
@@ -430,7 +444,7 @@ func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
 
 	id := uuid.New().String()
 	inputPath := filepath.Join(s.cfg.Storage.TempDir, "share_src_"+id+ext)
-	videoPath := filepath.Join(s.cfg.Storage.TempDir, "share_"+id+".mp4")
+	videoPath := filepath.Join(s.cfg.Storage.ShareDir, id+".mp4")
 	dst, err := os.Create(inputPath)
 	if err != nil {
 		jsonError(w, "failed to create share file", http.StatusInternalServerError)
@@ -456,6 +470,15 @@ func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
 		inputDuration = info.Duration
 	}
 	sharedComments := remapCommentsForCuts(comments, cutRanges, inputDuration)
+	now := time.Now()
+	for i := range sharedComments {
+		if strings.TrimSpace(sharedComments[i].Author) == "" {
+			sharedComments[i].Author = createdBy
+		}
+		if sharedComments[i].CreatedAt.IsZero() {
+			sharedComments[i].CreatedAt = now
+		}
+	}
 
 	base := strings.TrimSuffix(header.Filename, filepath.Ext(header.Filename))
 	if strings.TrimSpace(base) == "" {
@@ -464,16 +487,21 @@ func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
 	sharedFileName := base + "_shared.mp4"
 
 	sess := &ShareSession{
-		ID:        id,
-		FileName:  sharedFileName,
-		VideoPath: videoPath,
-		CutRanges: nil,
-		Comments:  sharedComments,
-		CreatedAt: time.Now(),
+		ID:         id,
+		FileName:   sharedFileName,
+		VideoPath:  videoPath,
+		CutRanges:  nil,
+		Comments:   sharedComments,
+		CreatedAt:  now,
+		ExpiresAt:  expiresAt,
+		CreatedBy:  createdBy,
+		PublicView: s.cfg.Sharing.PublicView,
 	}
-	s.shareMu.Lock()
-	s.shares[id] = sess
-	s.shareMu.Unlock()
+	if err := s.shares.Save(sess); err != nil {
+		os.Remove(videoPath)
+		jsonError(w, "failed to persist share: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	baseURL := "http://" + r.Host
 	if r.TLS != nil {
@@ -481,16 +509,19 @@ func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonOK(w, map[string]any{
-		"id":        id,
-		"share_url": baseURL + "/?share=" + id,
+		"id":         id,
+		"share_url":  baseURL + "/?share=" + id,
+		"expires_at": expiresAt,
 	}, http.StatusOK)
 }
 
 func (s *Server) handleGetShareMeta(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	s.shareMu.RLock()
-	sess, ok := s.shares[id]
-	s.shareMu.RUnlock()
+	sess, ok, status, err := s.loadShareForRequest(id, r)
+	if err != nil {
+		jsonError(w, err.Error(), status)
+		return
+	}
 	if !ok {
 		jsonError(w, "share not found", http.StatusNotFound)
 		return
@@ -501,20 +532,25 @@ func (s *Server) handleGetShareMeta(w http.ResponseWriter, r *http.Request) {
 		baseURL = "https://" + r.Host
 	}
 	jsonOK(w, map[string]any{
-		"id":         sess.ID,
-		"file_name":  sess.FileName,
-		"cut_ranges": sess.CutRanges,
-		"comments":   sess.Comments,
-		"video_url":  baseURL + "/api/v1/share/" + id + "/video",
-		"created_at": sess.CreatedAt,
+		"id":          sess.ID,
+		"file_name":   sess.FileName,
+		"cut_ranges":  sess.CutRanges,
+		"comments":    sess.Comments,
+		"video_url":   baseURL + "/api/v1/share/" + id + "/video",
+		"created_at":  sess.CreatedAt,
+		"expires_at":  sess.ExpiresAt,
+		"created_by":  sess.CreatedBy,
+		"public_view": sess.PublicView,
 	}, http.StatusOK)
 }
 
 func (s *Server) handleGetShareVideo(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	s.shareMu.RLock()
-	sess, ok := s.shares[id]
-	s.shareMu.RUnlock()
+	sess, ok, status, err := s.loadShareForRequest(id, r)
+	if err != nil {
+		jsonError(w, err.Error(), status)
+		return
+	}
 	if !ok {
 		jsonError(w, "share not found", http.StatusNotFound)
 		return
@@ -538,6 +574,45 @@ func (s *Server) handleGetShareVideo(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, downloadName))
 	w.Header().Set("Cache-Control", "no-cache")
 	http.ServeContent(w, r, downloadName, sess.CreatedAt, f)
+}
+
+func (s *Server) resolveShareExpiry(raw string) (time.Time, error) {
+	hours := s.cfg.Sharing.DefaultExpiryHours
+	if v := strings.TrimSpace(raw); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("invalid share expiry")
+		}
+		hours = parsed
+	}
+	if hours <= 0 {
+		return time.Time{}, fmt.Errorf("share expiry must be greater than zero")
+	}
+	if s.cfg.Sharing.MaxExpiryHours > 0 && hours > s.cfg.Sharing.MaxExpiryHours {
+		return time.Time{}, fmt.Errorf("share expiry exceeds configured maximum")
+	}
+	return time.Now().Add(time.Duration(hours) * time.Hour), nil
+}
+
+func (s *Server) loadShareForRequest(id string, r *http.Request) (*ShareSession, bool, int, error) {
+	if s.shares == nil {
+		return nil, false, http.StatusNotFound, nil
+	}
+	sess, ok, err := s.shares.Get(id, time.Now())
+	if err != nil {
+		return nil, false, http.StatusInternalServerError, fmt.Errorf("failed to load share")
+	}
+	if !ok {
+		return nil, false, http.StatusNotFound, nil
+	}
+	if sess.PublicView {
+		return sess, true, http.StatusOK, nil
+	}
+	okAuth, _ := s.isAuthenticated(r)
+	if !okAuth {
+		return nil, false, http.StatusUnauthorized, fmt.Errorf("authentication required")
+	}
+	return sess, true, http.StatusOK, nil
 }
 
 func remapCommentsForCuts(comments []ShareComment, cuts []config.ClipSegment, duration float64) []ShareComment {

@@ -11,6 +11,8 @@ type Config struct {
 	Server         ServerConfig          `json:"server"`
 	Storage        StorageConfig         `json:"storage"`
 	Queue          QueueConfig           `json:"queue"`
+	Auth           AuthConfig            `json:"auth"`
+	Sharing        SharingConfig         `json:"sharing"`
 	DefaultProfile string                `json:"default_profile"`
 	Profiles       map[string]GifProfile `json:"profiles"`
 }
@@ -27,6 +29,7 @@ type StorageConfig struct {
 	UploadDir          string `json:"upload_dir"`
 	OutputDir          string `json:"output_dir"`
 	TempDir            string `json:"temp_dir"`
+	ShareDir           string `json:"share_dir"`
 	MaxAgeHours        int    `json:"max_age_hours"`
 	CleanupIntervalMin int    `json:"cleanup_interval_min"`
 }
@@ -35,6 +38,19 @@ type QueueConfig struct {
 	Workers       int `json:"workers"`
 	MaxQueueSize  int `json:"max_queue_size"`
 	JobTimeoutSec int `json:"job_timeout_sec"`
+}
+
+type AuthConfig struct {
+	Enabled         bool   `json:"enabled"`
+	PasswordSHA256  string `json:"password_sha256"`
+	SessionTTLHours int    `json:"session_ttl_hours"`
+}
+
+type SharingConfig struct {
+	Enabled            bool `json:"enabled"`
+	PublicView         bool `json:"public_view"`
+	DefaultExpiryHours int  `json:"default_expiry_hours"`
+	MaxExpiryHours     int  `json:"max_expiry_hours"`
 }
 
 type ClipSegment struct {
@@ -87,10 +103,12 @@ func Default() *Config {
 			MaxUploadBytes: 500 * 1024 * 1024,
 		},
 		Storage: StorageConfig{
-			UploadDir: "./uploads", OutputDir: "./outputs", TempDir: "./tmp",
+			UploadDir: "./uploads", OutputDir: "./outputs", TempDir: "./tmp", ShareDir: "./shares",
 			MaxAgeHours: 24, CleanupIntervalMin: 30,
 		},
 		Queue:          QueueConfig{Workers: 4, MaxQueueSize: 100, JobTimeoutSec: 600},
+		Auth:           AuthConfig{Enabled: false, SessionTTLHours: 12},
+		Sharing:        SharingConfig{Enabled: true, PublicView: true, DefaultExpiryHours: 168, MaxExpiryHours: 720},
 		DefaultProfile: "balanced",
 		Profiles: map[string]GifProfile{
 			"balanced": {
@@ -111,6 +129,18 @@ func (c *Config) Validate() error {
 	}
 	if c.Queue.Workers < 1 {
 		return fmt.Errorf("queue.workers must be >= 1")
+	}
+	if c.Auth.SessionTTLHours < 0 {
+		return fmt.Errorf("auth.session_ttl_hours must be >= 0")
+	}
+	if c.Sharing.DefaultExpiryHours < 0 {
+		return fmt.Errorf("sharing.default_expiry_hours must be >= 0")
+	}
+	if c.Sharing.MaxExpiryHours < 0 {
+		return fmt.Errorf("sharing.max_expiry_hours must be >= 0")
+	}
+	if c.Sharing.MaxExpiryHours > 0 && c.Sharing.DefaultExpiryHours > c.Sharing.MaxExpiryHours {
+		return fmt.Errorf("sharing.default_expiry_hours must be <= sharing.max_expiry_hours")
 	}
 	for name, p := range c.Profiles {
 		if p.FPS <= 0 || p.FPS > 60 {
@@ -155,17 +185,29 @@ func (c *Config) applyDefaults() {
 	if c.Storage.TempDir == "" {
 		c.Storage.TempDir = "./tmp"
 	}
+	if c.Storage.ShareDir == "" {
+		c.Storage.ShareDir = "./shares"
+	}
 	if c.Queue.Workers == 0 {
 		c.Queue.Workers = 4
 	}
 	if c.Queue.JobTimeoutSec == 0 {
 		c.Queue.JobTimeoutSec = 600
 	}
+	if c.Auth.SessionTTLHours == 0 {
+		c.Auth.SessionTTLHours = 12
+	}
+	if c.Sharing.DefaultExpiryHours == 0 {
+		c.Sharing.DefaultExpiryHours = 168
+	}
+	if c.Sharing.MaxExpiryHours == 0 {
+		c.Sharing.MaxExpiryHours = 720
+	}
 	if c.DefaultProfile == "" {
 		c.DefaultProfile = "balanced"
 	}
 	// Ensure dirs exist
-	for _, d := range []string{c.Storage.UploadDir, c.Storage.OutputDir, c.Storage.TempDir} {
+	for _, d := range []string{c.Storage.UploadDir, c.Storage.OutputDir, c.Storage.TempDir, c.Storage.ShareDir} {
 		_ = os.MkdirAll(d, 0755)
 	}
 }

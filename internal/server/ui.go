@@ -209,6 +209,7 @@ const uiHTML = `<!DOCTYPE html>
     gap: 8px;
     align-items: center;
     margin-bottom: 10px;
+    flex-wrap: wrap;
   }
 
   .recorder-status {
@@ -219,6 +220,10 @@ const uiHTML = `<!DOCTYPE html>
     display: inline-flex;
     align-items: center;
     gap: 7px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: rgba(15,20,32,0.75);
   }
 
   .recorder-status.recording {
@@ -245,6 +250,61 @@ const uiHTML = `<!DOCTYPE html>
     0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.7); }
     70% { box-shadow: 0 0 0 10px rgba(239,68,68,0); }
     100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+  }
+
+  .recorder-settings {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(15,20,32,0.92);
+  }
+
+  .inline-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.76rem;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .inline-check input {
+    width: 15px;
+    height: 15px;
+    accent-color: var(--accent);
+  }
+
+  .draft-panel {
+    margin-top: 12px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(15,20,32,0.92);
+  }
+
+  .draft-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .draft-copy {
+    font-size: 0.74rem;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+
+  .draft-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
   }
 
   .save-video-wide {
@@ -338,6 +398,11 @@ const uiHTML = `<!DOCTYPE html>
     box-shadow: 0 0 12px rgba(52,211,153,0.85);
   }
 
+  .comment-dot.resolved {
+    background: #60a5fa;
+    box-shadow: 0 0 10px rgba(96,165,250,0.8);
+  }
+
   .comment-layout {
     margin-top: 10px;
     display: grid;
@@ -374,7 +439,7 @@ const uiHTML = `<!DOCTYPE html>
     color: #fcd34d;
     border-radius: 6px;
     padding: 8px;
-    font-size: 0.74rem;
+    font-size: 0.72rem;
     font-family: 'JetBrains Mono', monospace;
     cursor: pointer;
   }
@@ -383,6 +448,71 @@ const uiHTML = `<!DOCTYPE html>
     border-color: rgba(52,211,153,0.8);
     background: rgba(52,211,153,0.1);
     color: #6ee7b7;
+  }
+
+  .comment-item.resolved {
+    background: rgba(96,165,250,0.08);
+    color: #bfdbfe;
+  }
+
+  .comment-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: space-between;
+  }
+
+  .comment-main {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .comment-text {
+    margin-top: 6px;
+    line-height: 1.45;
+    word-break: break-word;
+  }
+
+  .comment-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+
+  .comment-mini-btn {
+    border: 1px solid var(--border);
+    background: transparent;
+    color: inherit;
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 0.64rem;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .comment-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border: 1px solid rgba(245,158,11,0.45);
+    color: #fbbf24;
+  }
+
+  .comment-badge.resolved {
+    border-color: rgba(96,165,250,0.5);
+    color: #93c5fd;
+  }
+
+  .comment-summary {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 0.7rem;
+    font-family: 'JetBrains Mono', monospace;
   }
 
   .comment-tools {
@@ -421,6 +551,34 @@ const uiHTML = `<!DOCTYPE html>
     font-size: 0.74rem;
     color: var(--accent2);
     font-family: 'JetBrains Mono', monospace;
+  }
+
+  .editor-summary {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .summary-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(15,20,32,0.92);
+    border: 1px solid var(--border);
+    font-size: 0.68rem;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .shortcut-note {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 0.69rem;
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1.6;
   }
 
   .timeline-wrap { margin-top: 12px; }
@@ -526,7 +684,7 @@ const uiHTML = `<!DOCTYPE html>
 
   .segment-row {
     display: grid;
-    grid-template-columns: 42px 1fr 1fr auto auto auto auto;
+    grid-template-columns: 42px 1fr 1fr auto auto auto auto auto;
     gap: 6px;
     align-items: center;
   }
@@ -587,6 +745,17 @@ const uiHTML = `<!DOCTYPE html>
     font-size: 0.76rem;
     font-family: 'JetBrains Mono', monospace;
     padding: 2px 0;
+  }
+
+  .bottom-save-wrap {
+    margin-top: 18px;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .bottom-save-wrap .save-video-wide {
+    width: min(360px, 100%);
+    margin: 0;
   }
 
   /* Profile selector */
@@ -880,6 +1049,82 @@ const uiHTML = `<!DOCTYPE html>
     color: var(--accent2);
     border: 1px solid rgba(124,58,237,0.3);
   }
+
+  .auth-gate {
+    position: fixed;
+    inset: 0;
+    z-index: 9998;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(3,7,18,0.84);
+    backdrop-filter: blur(10px);
+  }
+
+  .auth-gate.visible {
+    display: flex;
+  }
+
+  .auth-card {
+    width: min(420px, 100%);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(17,17,24,0.98), rgba(9,12,20,0.98));
+    box-shadow: 0 30px 80px rgba(0,0,0,0.45);
+    padding: 24px;
+  }
+
+  .auth-copy {
+    color: var(--muted);
+    font-size: 0.82rem;
+    line-height: 1.55;
+    margin: 10px 0 16px;
+  }
+
+  .auth-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-top: 14px;
+  }
+
+  .auth-status {
+    color: var(--muted);
+    font-size: 0.74rem;
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 10px;
+    min-height: 1.2em;
+  }
+
+  .share-settings {
+    display: grid;
+    grid-template-columns: 1fr 160px;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .auth-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: rgba(15,20,32,0.75);
+    color: var(--muted);
+    font-size: 0.7rem;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .comment-meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    color: var(--muted);
+    font-size: 0.64rem;
+    margin-top: 4px;
+  }
 </style>
 </head>
 <body>
@@ -892,6 +1137,8 @@ const uiHTML = `<!DOCTYPE html>
       </div>
       <div style="display:flex;gap:10px;align-items:center">
         <span id="statsLabel" style="font-size:0.75rem;color:var(--muted);font-family:'JetBrains Mono',monospace"></span>
+        <span class="auth-pill" id="authBadge" style="display:none">Auth required</span>
+        <button class="chip-btn" type="button" id="logoutBtn" onclick="logout()" style="display:none">Logout</button>
         <span class="tag">v1.0.0</span>
       </div>
     </div>
@@ -909,10 +1156,35 @@ const uiHTML = `<!DOCTYPE html>
 
         <div class="recorder-row">
           <button class="chip-btn" type="button" id="recordStartBtn" onclick="startScreenRecording()">Start Recording</button>
+          <button class="chip-btn" type="button" id="recordPauseBtn" onclick="toggleScreenRecordingPause()" disabled>Pause</button>
           <button class="chip-btn danger" type="button" id="recordStopBtn" onclick="stopScreenRecording()" disabled>Stop Recording</button>
           <span class="recorder-status" id="recorderStatus">
             <span class="rec-indicator"></span>
+            <span id="recorderStatusText">Recorder idle</span>
           </span>
+        </div>
+
+        <div class="recorder-settings">
+          <label class="inline-check"><input type="checkbox" id="recordSystemAudio" checked>System audio</label>
+          <label class="inline-check"><input type="checkbox" id="recordMicrophone">Microphone</label>
+          <div class="param-group">
+            <label>Capture FPS</label>
+            <select id="recordFrameRate">
+              <option value="24">24 fps</option>
+              <option value="30" selected>30 fps</option>
+              <option value="60">60 fps</option>
+            </select>
+          </div>
+          <div class="param-group">
+            <label>Review Speed</label>
+            <select id="playbackRate" onchange="setPlaybackRate(this.value)">
+              <option value="0.75">0.75×</option>
+              <option value="1" selected>1.00×</option>
+              <option value="1.25">1.25×</option>
+              <option value="1.5">1.50×</option>
+              <option value="2">2.00×</option>
+            </select>
+          </div>
         </div>
 
         <div class="dropzone" id="dropzone">
@@ -937,6 +1209,28 @@ const uiHTML = `<!DOCTYPE html>
             <button class="chip-btn" id="shareBtn" onclick="createShareLink()" disabled>Create Link</button>
             <input type="text" id="shareLink" readonly placeholder="Click Create Link to generate URL" />
             <button class="chip-btn" type="button" onclick="copyShareLink()">Copy</button>
+          </div>
+          <div class="share-settings">
+            <input type="text" id="shareAuthor" placeholder="Reviewer / author name" />
+            <select id="shareExpiryHours">
+              <option value="24">24h</option>
+              <option value="72">72h</option>
+              <option value="168" selected>7 days</option>
+              <option value="336">14 days</option>
+              <option value="720">30 days</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="draft-panel">
+          <div class="draft-head">
+            <div class="share-label" style="margin:0">Draft Recovery</div>
+            <span class="tag" id="draftTag">local</span>
+          </div>
+          <div class="draft-copy" id="draftStatus">No local draft yet. Cuts, notes, and review settings will autosave in this browser.</div>
+          <div class="draft-actions">
+            <button class="chip-btn" type="button" id="restoreDraftBtn" onclick="restoreDraftToCurrentFile()" disabled>Restore Draft</button>
+            <button class="chip-btn danger" type="button" id="discardDraftBtn" onclick="discardDraft()">Discard Draft</button>
           </div>
         </div>
         <button class="save-video-wide" type="button" id="saveScreenBtn" onclick="saveEditedVideo()" disabled>Save Video</button>
@@ -1047,9 +1341,14 @@ const uiHTML = `<!DOCTYPE html>
               </div>
 
               <div class="editor-toolbar">
+                <button class="chip-btn" type="button" onclick="seekRelative(-5)">−5s</button>
+                <button class="chip-btn" type="button" onclick="seekRelative(5)">+5s</button>
                 <button class="chip-btn" type="button" onclick="markCutStart()">Mark Cut Start</button>
                 <button class="chip-btn" type="button" onclick="markCutEnd()">Mark Cut End</button>
                 <button class="chip-btn warn" type="button" onclick="cutMarkedRange()">Cut Marked Range</button>
+                <button class="chip-btn" type="button" id="loopToggleBtn" onclick="toggleLoopSelection()">Loop Cuts Off</button>
+                <button class="chip-btn" type="button" id="undoBtn" onclick="undoHistory()" disabled>Undo</button>
+                <button class="chip-btn" type="button" id="redoBtn" onclick="redoHistory()" disabled>Redo</button>
                 <button class="chip-btn danger" type="button" onclick="resetCuts()">Reset Cuts</button>
                 <span class="editor-time" id="editorNow">00:00.00 / 00:00.00</span>
               </div>
@@ -1057,14 +1356,22 @@ const uiHTML = `<!DOCTYPE html>
 
             <div class="comment-sidebar">
               <div style="font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em">Notes / Comments</div>
+              <div class="comment-tools" style="grid-template-columns:1fr">
+                <input type="text" id="commentAuthor" placeholder="Comment author" />
+              </div>
               <div class="comment-tools">
                 <input type="text" id="commentText" placeholder="Comment text..." />
                 <button class="chip-btn warn" type="button" onclick="toggleCommentCapture()">Pick Point</button>
               </div>
-              <div class="comment-actions" style="margin-top:8px;display:flex;gap:8px">
+              <div class="comment-actions">
                 <button class="chip-btn" type="button" onclick="addCommentAtCurrent()">Add at Current Time</button>
+                <button class="chip-btn" type="button" onclick="updateActiveComment()">Update Selected</button>
+                <button class="chip-btn" type="button" onclick="toggleCommentResolved()">Resolve / Reopen</button>
+                <button class="chip-btn" type="button" onclick="copyNotesReport()">Copy Report</button>
+                <button class="chip-btn danger" type="button" onclick="deleteActiveComment()">Delete Selected</button>
                 <button class="chip-btn danger" type="button" onclick="clearComments()">Clear</button>
               </div>
+              <div class="comment-summary" id="commentSummary">0 notes</div>
               <div class="comment-list" id="commentList"></div>
             </div>
           </div>
@@ -1089,10 +1396,12 @@ const uiHTML = `<!DOCTYPE html>
           </div>
 
           <div class="segment-title">
-            <span>Cut Ranges (Multi-Select)</span>
+            <span>Cut Ranges (Multi-Select) <span id="cutRemovedLabel" style="color:#fca5a5">· Removed 00:00.00</span></span>
             <button class="chip-btn danger" type="button" onclick="resetCuts()">Reset All</button>
           </div>
           <div class="segment-list" id="segmentList"></div>
+          <div class="editor-summary" id="editorSummary"></div>
+          <div class="shortcut-note">Shortcuts: Space play/pause, J/L seek, I/O mark cut bounds, K add cut, N focus note, Ctrl/Cmd+Z undo, Shift+Ctrl/Cmd+Z redo.</div>
         </div>
       </div>
 
@@ -1116,12 +1425,27 @@ const uiHTML = `<!DOCTYPE html>
       </div>
     </div>
   </main>
+  <div class="bottom-save-wrap" id="bottomSaveWrap">
+    <button class="save-video-wide" type="button" id="bottomSaveBtn" onclick="saveEditedVideo()" disabled>Save Video</button>
+  </div>
 </div>
 
 <div id="toast"></div>
+<div class="auth-gate" id="authGate">
+  <div class="auth-card">
+    <div class="card-title" style="margin-bottom:0">Workspace Login</div>
+    <div class="auth-copy">This workspace is password protected. Shared review links can stay public, but creating or editing content requires signing in.</div>
+    <input type="password" id="authPassword" placeholder="Enter workspace password" />
+    <div class="auth-row">
+      <button class="convert-btn" type="button" id="loginBtn" onclick="login()">Unlock Workspace</button>
+    </div>
+    <div class="auth-status" id="authStatusText"></div>
+  </div>
+</div>
 
 <script>
 const API = '/api/v1';
+const APP_DRAFT_KEY = 'video2gif:draft:v2';
 let selectedFile = null;
 let activeProfile = 'balanced';
 let pollInterval = null;
@@ -1134,34 +1458,172 @@ let markEnd = null;
 let dragState = null;
 let cutPreview = null;
 let recorderStream = null;
+let microphoneStream = null;
 let mediaRecorder = null;
 let recordedChunks = [];
 let recorderTimer = null;
 let recorderStartedAt = 0;
+let recorderElapsedMs = 0;
 let activeTab = 'screenshare';
 let comments = [];
 let commentCaptureMode = false;
 let pendingCommentPoint = null;
 let activeCommentId = '';
 let pausedCommentIDs = new Set();
+let loopSelectionEnabled = false;
+let historyStack = [];
+let redoStack = [];
+let suppressHistory = false;
+let draftCache = null;
+let draftSaveTimer = null;
+let draftCacheLoaded = false;
+let pendingDraftRestore = false;
+let authEnabled = false;
+let isAuthenticated = false;
 
 // ── Init ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+  loadDraftCache();
+  setupDragDrop();
+  setupKeyboardShortcuts();
+  bindDraftAwareInputs();
+  updateHistoryButtons();
+  updateDraftStatus();
+  document.getElementById('authPassword').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      login();
+    }
+  });
+  const sharedView = !!new URLSearchParams(window.location.search).get('share');
+  await bootstrapAuth(sharedView);
+  if (sharedView) {
+    await maybeLoadSharedSession();
+  }
+  checkHealth();
+  setInterval(checkHealth, 15000);
+  setInterval(() => {
+    if (!authEnabled || isAuthenticated) {
+      loadJobs();
+    }
+  }, 5000);
+});
+
+async function bootstrapAuth(sharedView) {
+  try {
+    const r = await fetch(API + '/auth/status', { credentials: 'same-origin' });
+    const status = await r.json();
+    authEnabled = !!status.enabled;
+    isAuthenticated = !!status.authenticated;
+    updateAuthUI(status, sharedView);
+    if (!authEnabled || isAuthenticated) {
+      await loadPrivateWorkspace();
+    }
+  } catch (e) {
+    if (!sharedView) {
+      setAuthMessage('Authentication status check failed', true);
+    }
+  }
+}
+
+async function loadPrivateWorkspace() {
   await loadProfiles();
   await loadJobs();
   await loadConfig();
-  setTab('screenshare');
-  await maybeLoadSharedSession();
-  checkHealth();
-  setInterval(checkHealth, 15000);
-  setInterval(loadJobs, 5000);
-  setupDragDrop();
-});
+  if (!draftCache?.active_tab) {
+    setTab('screenshare');
+  }
+}
+
+async function apiFetch(url, options) {
+  const response = await fetch(url, {
+    credentials: 'same-origin',
+    ...(options || {}),
+  });
+  if (response.status === 401) {
+    handleUnauthorized();
+  }
+  return response;
+}
+
+async function login() {
+  const input = document.getElementById('authPassword');
+  const button = document.getElementById('loginBtn');
+  const password = (input.value || '').trim();
+  if (!password) {
+    setAuthMessage('Enter the workspace password', true);
+    return;
+  }
+  button.disabled = true;
+  button.textContent = 'Unlocking...';
+  try {
+    const r = await apiFetch(API + '/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Login failed');
+    authEnabled = !!d.enabled;
+    isAuthenticated = !!d.authenticated;
+    input.value = '';
+    setAuthMessage('');
+    updateAuthUI(d, false);
+    await loadPrivateWorkspace();
+    toast('Workspace unlocked', 'success');
+  } catch (e) {
+    setAuthMessage(e.message || 'Login failed', true);
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Unlock Workspace';
+  }
+}
+
+async function logout() {
+  await apiFetch(API + '/auth/logout', { method: 'POST' });
+  handleUnauthorized();
+}
+
+function handleUnauthorized() {
+  isAuthenticated = false;
+  updateAuthUI({ enabled: authEnabled, authenticated: false }, isShareView());
+}
+
+function updateAuthUI(status, sharedView) {
+  authEnabled = !!status.enabled;
+  isAuthenticated = !!status.authenticated;
+  const gate = document.getElementById('authGate');
+  const badge = document.getElementById('authBadge');
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (badge) {
+    badge.style.display = authEnabled ? 'inline-flex' : 'none';
+    badge.textContent = isAuthenticated ? 'Authenticated' : 'Auth required';
+  }
+  if (logoutBtn) {
+    logoutBtn.style.display = authEnabled && isAuthenticated ? 'inline-flex' : 'none';
+  }
+  if (!gate) return;
+  gate.classList.toggle('visible', authEnabled && !isAuthenticated && !sharedView);
+  if (gate.classList.contains('visible')) {
+    setTimeout(() => document.getElementById('authPassword').focus(), 30);
+  }
+}
+
+function setAuthMessage(message, isError) {
+  const el = document.getElementById('authStatusText');
+  if (!el) return;
+  el.textContent = message || '';
+  el.style.color = isError ? 'var(--danger)' : 'var(--muted)';
+}
+
+function isShareView() {
+  return !!new URLSearchParams(window.location.search).get('share');
+}
 
 // ── Health ────────────────────────────────────────────────────────────────
 async function checkHealth() {
   try {
-    const r = await fetch(API + '/health');
+    const r = await apiFetch(API + '/health');
     const d = await r.json();
     const dot = document.getElementById('healthDot');
     dot.style.background = d.status === 'ok' ? 'var(--accent3)' : 'var(--warn)';
@@ -1174,10 +1636,11 @@ async function checkHealth() {
 // ── Profiles ──────────────────────────────────────────────────────────────
 async function loadProfiles() {
   try {
-    const r = await fetch(API + '/profiles');
+    const r = await apiFetch(API + '/profiles');
     profiles = await r.json();
     renderProfiles();
     applyProfile('balanced');
+    maybeApplyDraftSettings();
   } catch(e) { console.error(e); }
 }
 
@@ -1213,6 +1676,7 @@ function applyProfile(name) {
   setVal('speed', p.speed_multiplier || 1); syncSlider('speed','speedVal');
   setVal('loop', p.loop !== undefined ? p.loop : 0);
   document.getElementById('optimizePalette').checked = !!p.optimize_palette;
+  queueDraftSave();
 }
 
 function setVal(id, v) {
@@ -1240,41 +1704,53 @@ function setTab(name) {
   document.getElementById('convertBtn').style.display = isScreen ? 'none' : 'block';
   document.getElementById('saveBtn').style.display = isScreen ? 'block' : 'none';
   document.getElementById('saveScreenBtn').style.display = isScreen ? 'block' : 'none';
+  document.getElementById('bottomSaveWrap').style.display = selectedFile ? 'flex' : 'none';
+  queueDraftSave();
 }
 
 async function maybeLoadSharedSession() {
   const id = new URLSearchParams(window.location.search).get('share');
   if (!id) return;
   try {
-    const r = await fetch(API + '/share/' + id);
+    const r = await apiFetch(API + '/share/' + id);
     if (!r.ok) throw new Error('share not found');
     const d = await r.json();
     setTab('screenshare');
-    comments = (d.comments || []).map(c => ({
-      id: c.id || randomID(),
-      time: c.time || 0,
-      x: c.x || 0.5,
-      y: c.y || 0.5,
-      text: c.text || '',
-    }));
+    activeCommentId = '';
+    document.getElementById('commentText').value = '';
+	comments = (d.comments || []).map(c => ({
+		id: c.id || randomID(),
+		time: c.time || 0,
+		x: c.x || 0.5,
+		y: c.y || 0.5,
+		text: c.text || '',
+		status: c.status === 'resolved' ? 'resolved' : 'open',
+		author: c.author || '',
+		created_at: c.created_at || '',
+	}));
     cutRanges = (d.cut_ranges || []).map(c => ({ start: c.start || 0, end: c.end || 0 }));
-    const wrap = document.getElementById('editorWrap');
-    const video = document.getElementById('editorVideo');
-    document.body.classList.add('shared-mode');
-    wrap.style.display = 'block';
-    document.getElementById('previewName').textContent = d.file_name || 'shared-video';
-    document.getElementById('previewMeta').textContent = 'Shared session';
+	const wrap = document.getElementById('editorWrap');
+	const video = document.getElementById('editorVideo');
+	document.body.classList.add('shared-mode');
+	wrap.style.display = 'block';
+	document.getElementById('shareAuthor').value = d.created_by || '';
+	document.getElementById('previewName').textContent = d.file_name || 'shared-video';
+	document.getElementById('previewMeta').textContent = 'Shared by ' + (d.created_by || 'unknown') + ' · expires ' + formatDateTime(d.expires_at);
     document.getElementById('filePreview').style.display = 'flex';
     video.src = d.video_url;
     document.getElementById('convertBtn').disabled = true;
     document.getElementById('saveBtn').disabled = true;
     document.getElementById('saveScreenBtn').disabled = true;
+    document.getElementById('bottomSaveBtn').disabled = true;
     document.getElementById('shareBtn').disabled = true;
     document.getElementById('recordStartBtn').disabled = true;
+    document.getElementById('recordPauseBtn').disabled = true;
     document.getElementById('recordStopBtn').disabled = true;
+    document.getElementById('restoreDraftBtn').disabled = true;
     renderSegments();
     renderCommentDots();
     renderComments();
+    renderEditorSummary();
     toast('Loaded shared session', 'success');
   } catch (e) {
     document.body.classList.remove('shared-mode');
@@ -1311,13 +1787,31 @@ async function startScreenRecording() {
   }
   if (mediaRecorder && mediaRecorder.state === 'recording') return;
   try {
+    const includeSystemAudio = document.getElementById('recordSystemAudio').checked;
+    const includeMicrophone = document.getElementById('recordMicrophone').checked;
+    const captureFPS = parseInt(document.getElementById('recordFrameRate').value, 10) || 30;
     recorderStream = await getDisplayMedia({
-      video: true,
-      audio: true,
+      video: { frameRate: captureFPS },
+      audio: includeSystemAudio,
     });
+    if (includeMicrophone && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      try {
+        microphoneStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (micErr) {
+        toast('Microphone permission denied, continuing without mic', 'error');
+      }
+    }
+    if (microphoneStream && microphoneStream.getAudioTracks().length) {
+      const merged = new MediaStream();
+      recorderStream.getVideoTracks().forEach(track => merged.addTrack(track));
+      recorderStream.getAudioTracks().forEach(track => merged.addTrack(track));
+      microphoneStream.getAudioTracks().forEach(track => merged.addTrack(track));
+      recorderStream = merged;
+    }
     const mimeType = pickRecorderMimeType();
     mediaRecorder = mimeType ? new MediaRecorder(recorderStream, { mimeType }) : new MediaRecorder(recorderStream);
     recordedChunks = [];
+    recorderElapsedMs = 0;
 
     mediaRecorder.ondataavailable = event => {
       if (event.data && event.data.size > 0) {
@@ -1361,16 +1855,34 @@ async function startScreenRecording() {
     toggleRecorderButtons(true);
     startRecorderTimer();
     setRecorderStatus('REC 00:00', true);
+    queueDraftSave();
     toast('Screen recording started', 'success');
   } catch (err) {
     setRecorderStatus('Recorder idle', false);
     toggleRecorderButtons(false);
+    stopRecorderTracks();
     toast('Could not start recording: ' + err.message, 'error');
   }
 }
 
+function toggleScreenRecordingPause() {
+  if (!mediaRecorder) return;
+  if (mediaRecorder.state === 'recording') {
+    recorderElapsedMs += Math.max(0, Date.now() - recorderStartedAt);
+    mediaRecorder.pause();
+    stopRecorderTimer();
+    setRecorderStatus('Recording paused', false);
+  } else if (mediaRecorder.state === 'paused') {
+    mediaRecorder.resume();
+    recorderStartedAt = Date.now();
+    startRecorderTimer();
+    setRecorderStatus('REC ' + formatClock(Math.floor(getRecordedDurationMs() / 1000)), true);
+  }
+  toggleRecorderButtons(mediaRecorder.state === 'recording', mediaRecorder.state === 'paused');
+}
+
 function stopScreenRecording() {
-  if (mediaRecorder && mediaRecorder.state === 'recording') {
+  if (mediaRecorder && (mediaRecorder.state === 'recording' || mediaRecorder.state === 'paused')) {
     mediaRecorder.stop();
     setRecorderStatus('Finalizing recording...', false);
     return;
@@ -1382,14 +1894,18 @@ function stopScreenRecording() {
 }
 
 function stopRecorderTracks() {
-  if (!recorderStream) return;
-  recorderStream.getTracks().forEach(t => t.stop());
+  if (recorderStream) recorderStream.getTracks().forEach(t => t.stop());
   recorderStream = null;
+  if (microphoneStream) microphoneStream.getTracks().forEach(t => t.stop());
+  microphoneStream = null;
+  recorderElapsedMs = 0;
 }
 
-function toggleRecorderButtons(isRecording) {
-  document.getElementById('recordStartBtn').disabled = isRecording;
-  document.getElementById('recordStopBtn').disabled = !isRecording;
+function toggleRecorderButtons(isRecording, isPaused) {
+  document.getElementById('recordStartBtn').disabled = isRecording || isPaused;
+  document.getElementById('recordPauseBtn').disabled = !isRecording && !isPaused;
+  document.getElementById('recordPauseBtn').textContent = isPaused ? 'Resume' : 'Pause';
+  document.getElementById('recordStopBtn').disabled = !isRecording && !isPaused;
 }
 
 function setRecorderStatus(text, recording) {
@@ -1402,7 +1918,7 @@ function setRecorderStatus(text, recording) {
 function startRecorderTimer() {
   stopRecorderTimer();
   recorderTimer = setInterval(() => {
-    const sec = Math.floor((Date.now() - recorderStartedAt) / 1000);
+    const sec = Math.floor(getRecordedDurationMs() / 1000);
     setRecorderStatus('REC ' + formatClock(sec), true);
   }, 200);
 }
@@ -1411,6 +1927,13 @@ function stopRecorderTimer() {
   if (!recorderTimer) return;
   clearInterval(recorderTimer);
   recorderTimer = null;
+}
+
+function getRecordedDurationMs() {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    return Math.max(0, recorderElapsedMs + (Date.now() - recorderStartedAt));
+  }
+  return Math.max(0, recorderElapsedMs);
 }
 
 // ── File handling ─────────────────────────────────────────────────────────
@@ -1442,15 +1965,28 @@ function setupDragDrop() {
   video.addEventListener('loadedmetadata', () => {
     setEditorDuration(Number.isFinite(video.duration) ? video.duration : 0);
     scrub.value = '0';
-    cutRanges = [];
-    markStart = null;
-    markEnd = null;
+    if (!(document.body.classList.contains('shared-mode') && !selectedFile)) {
+      cutRanges = [];
+      comments = [];
+      pendingCommentPoint = null;
+      activeCommentId = '';
+      pausedCommentIDs = new Set();
+      markStart = null;
+      markEnd = null;
+      document.getElementById('commentText').value = '';
+    }
     renderTimeline();
     renderSegments();
     renderCommentDots();
     renderComments();
+    renderEditorSummary();
     updateEditorHUD(0);
     ensurePlayableDuration(video);
+    if (pendingDraftRestore && selectedFile) {
+      pendingDraftRestore = false;
+      maybeRestoreDraftForFile(selectedFile);
+    }
+    pushHistorySnapshot();
   });
 
   video.addEventListener('durationchange', () => {
@@ -1458,6 +1994,7 @@ function setupDragDrop() {
       setEditorDuration(video.duration);
       renderTimeline();
       renderSegments();
+      renderEditorSummary();
       updateEditorHUD(video.currentTime || 0);
     }
   });
@@ -1469,6 +2006,14 @@ function setupDragDrop() {
   video.addEventListener('timeupdate', () => {
     if (!videoDuration) return;
     maybePauseForComment(video.currentTime);
+    if (loopSelectionEnabled) {
+      const activeCut = cutRanges.find(c => video.currentTime >= c.end - 0.03 && video.currentTime <= c.end + 0.25);
+      if (activeCut) {
+        video.currentTime = activeCut.start;
+        video.play().catch(() => {});
+        return;
+      }
+    }
     if (cutPreview && video.currentTime >= cutPreview.end) {
       video.pause();
       stopCutPreview();
@@ -1517,11 +2062,18 @@ function handleFile(file) {
   document.getElementById('previewMeta').textContent =
     formatBytes(file.size) + ' · ' + (file.type || 'video');
   document.getElementById('filePreview').style.display = 'flex';
+  document.getElementById('shareLink').value = '';
   document.getElementById('convertBtn').disabled = false;
   document.getElementById('saveBtn').disabled = false;
   document.getElementById('saveScreenBtn').disabled = false;
+  document.getElementById('bottomSaveBtn').disabled = false;
   document.getElementById('shareBtn').disabled = false;
+  document.getElementById('bottomSaveWrap').style.display = 'flex';
+  document.getElementById('restoreDraftBtn').disabled = !hasRestorableDraftForFile(file);
   initEditor(file);
+  resetHistory();
+  pendingDraftRestore = hasRestorableDraftForFile(file);
+  updateDraftStatus();
 }
 
 function clearFile() {
@@ -1529,27 +2081,38 @@ function clearFile() {
   selectedFile = null;
   document.getElementById('fileInput').value = '';
   document.getElementById('filePreview').style.display = 'none';
+  document.getElementById('shareLink').value = '';
   document.getElementById('convertBtn').disabled = true;
   document.getElementById('saveBtn').disabled = true;
   document.getElementById('saveScreenBtn').disabled = true;
+  document.getElementById('bottomSaveBtn').disabled = true;
   document.getElementById('shareBtn').disabled = true;
+  document.getElementById('bottomSaveWrap').style.display = 'none';
+  document.getElementById('restoreDraftBtn').disabled = !draftCache;
   document.getElementById('progressWrap').style.display = 'none';
   document.getElementById('editorWrap').style.display = 'none';
   document.getElementById('segmentList').innerHTML = '';
+  document.getElementById('editorSummary').innerHTML = '';
+  document.getElementById('cutRemovedLabel').textContent = '· Removed 00:00.00';
   cutRanges = [];
   comments = [];
   pendingCommentPoint = null;
   activeCommentId = '';
   pausedCommentIDs = new Set();
+  pendingDraftRestore = false;
   markStart = null;
   markEnd = null;
   videoDuration = 0;
+  document.getElementById('commentText').value = '';
   renderCommentDots();
   renderComments();
   if (editorObjectURL) {
     URL.revokeObjectURL(editorObjectURL);
     editorObjectURL = '';
   }
+  resetHistory();
+  updateHistoryButtons();
+  updateDraftStatus();
 }
 
 function initEditor(file) {
@@ -1558,6 +2121,7 @@ function initEditor(file) {
   if (editorObjectURL) URL.revokeObjectURL(editorObjectURL);
   editorObjectURL = URL.createObjectURL(file);
   video.src = editorObjectURL;
+  video.playbackRate = parseFloat(document.getElementById('playbackRate').value) || 1;
   wrap.style.display = 'block';
   setEditorDuration(0);
   probeVideoDuration(file);
@@ -1569,13 +2133,14 @@ function setEditorDuration(duration) {
   scrub.max = videoDuration ? videoDuration.toFixed(2) : '0';
   document.getElementById('cutStart').value = '0';
   document.getElementById('cutEnd').value = videoDuration ? videoDuration.toFixed(2) : '0';
+  renderEditorSummary();
 }
 
 async function probeVideoDuration(file) {
   try {
     const form = new FormData();
     form.append('video', file, file.name || 'recording.webm');
-    const r = await fetch(API + '/probe', { method: 'POST', body: form });
+    const r = await apiFetch(API + '/probe', { method: 'POST', body: form });
     if (!r.ok) return;
     const info = await r.json();
     if (!videoDuration && info && Number.isFinite(info.duration) && info.duration > 0) {
@@ -1597,6 +2162,7 @@ function toggleCommentCapture() {
 function addCommentAtCurrent() {
   const video = document.getElementById('editorVideo');
   const text = (document.getElementById('commentText').value || '').trim();
+  const author = (document.getElementById('commentAuthor').value || document.getElementById('shareAuthor').value || '').trim();
   if (!text) {
     toast('Enter a comment first', 'error');
     return;
@@ -1612,6 +2178,9 @@ function addCommentAtCurrent() {
     x: Number(point.x.toFixed(4)),
     y: Number(point.y.toFixed(4)),
     text,
+    status: 'open',
+    author,
+    created_at: new Date().toISOString(),
   });
   comments.sort((a, b) => a.time - b.time);
   pendingCommentPoint = null;
@@ -1619,25 +2188,105 @@ function addCommentAtCurrent() {
   pausedCommentIDs = new Set();
   renderComments();
   renderCommentDots();
+  renderEditorSummary();
+  pushHistorySnapshot();
+  queueDraftSave();
+}
+
+function updateActiveComment() {
+  const text = (document.getElementById('commentText').value || '').trim();
+  const author = (document.getElementById('commentAuthor').value || document.getElementById('shareAuthor').value || '').trim();
+  if (!activeCommentId) {
+    toast('Select a comment to update', 'error');
+    return;
+  }
+  if (!text) {
+    toast('Enter updated comment text first', 'error');
+    return;
+  }
+  const target = comments.find(c => c.id === activeCommentId);
+  if (!target) return;
+  target.text = text;
+  target.author = author;
+  renderComments();
+  renderCommentDots();
+  pushHistorySnapshot();
+  queueDraftSave();
+  toast('Comment updated', 'success');
+}
+
+function toggleCommentResolved(id) {
+  const commentID = id || activeCommentId;
+  if (!commentID) {
+    toast('Select a comment first', 'error');
+    return;
+  }
+  const target = comments.find(c => c.id === commentID);
+  if (!target) return;
+  target.status = target.status === 'resolved' ? 'open' : 'resolved';
+  renderComments();
+  renderCommentDots();
+  renderEditorSummary();
+  pushHistorySnapshot();
+  queueDraftSave();
+}
+
+function deleteActiveComment(id) {
+  const commentID = id || activeCommentId;
+  if (!commentID) {
+    toast('Select a comment first', 'error');
+    return;
+  }
+  comments = comments.filter(c => c.id !== commentID);
+  if (activeCommentId === commentID) {
+    activeCommentId = '';
+    document.getElementById('commentText').value = '';
+  }
+  pausedCommentIDs.delete(commentID);
+  renderComments();
+  renderCommentDots();
+  renderEditorSummary();
+  pushHistorySnapshot();
+  queueDraftSave();
 }
 
 function clearComments() {
   comments = [];
   activeCommentId = '';
   pausedCommentIDs = new Set();
+  document.getElementById('commentText').value = '';
   renderComments();
   renderCommentDots();
+  renderEditorSummary();
+  pushHistorySnapshot();
+  queueDraftSave();
 }
 
 function renderComments() {
   const list = document.getElementById('commentList');
+  const summary = document.getElementById('commentSummary');
+  const openCount = comments.filter(c => c.status !== 'resolved').length;
+  const resolvedCount = comments.length - openCount;
+  summary.textContent = comments.length + ' notes · ' + openCount + ' open · ' + resolvedCount + ' resolved';
   if (!comments.length) {
     list.innerHTML = '<div class="segment-empty">No notes yet.</div>';
     return;
   }
   list.innerHTML = comments.map(c =>
-    '<div class="comment-item' + (c.id === activeCommentId ? ' active' : '') + '" onclick="jumpToComment(\'' + c.id + '\')">' +
-      formatTime(c.time) + ' — ' + escHtml(c.text) +
+    '<div class="comment-item' + (c.id === activeCommentId ? ' active' : '') + (c.status === 'resolved' ? ' resolved' : '') + '" onclick="jumpToComment(\'' + c.id + '\')">' +
+      '<div class="comment-row">' +
+        '<div class="comment-main">' +
+          '<div>' + formatTime(c.time) + '</div>' +
+          '<div class="comment-meta"><span>' + escHtml(c.author || 'anonymous') + '</span><span>' + formatDateTime(c.created_at) + '</span></div>' +
+          '<div class="comment-text">' + escHtml(c.text) + '</div>' +
+        '</div>' +
+        '<span class="comment-badge' + (c.status === 'resolved' ? ' resolved' : '') + '">' + (c.status === 'resolved' ? 'Resolved' : 'Open') + '</span>' +
+      '</div>' +
+      '<div class="comment-actions">' +
+        '<button class="comment-mini-btn" type="button" onclick="event.stopPropagation();jumpToComment(\'' + c.id + '\')">Jump</button>' +
+        '<button class="comment-mini-btn" type="button" onclick="event.stopPropagation();toggleCommentResolved(\'' + c.id + '\')">' + (c.status === 'resolved' ? 'Reopen' : 'Resolve') + '</button>' +
+        '<button class="comment-mini-btn" type="button" onclick="event.stopPropagation();deleteActiveComment(\'' + c.id + '\')">Delete</button>' +
+      '</div>' +
     '</div>'
   ).join('');
 }
@@ -1649,7 +2298,7 @@ function renderCommentDots() {
   const points = comments.map(c => {
     const leftPct = ((box.left + (c.x * box.width)) / box.overlayWidth) * 100;
     const topPct = ((box.top + (c.y * box.height)) / box.overlayHeight) * 100;
-    return '<span class="comment-dot' + (c.id === activeCommentId ? ' active' : '') + '" style="left:' + leftPct + '%;top:' + topPct + '%"></span>';
+    return '<span class="comment-dot' + (c.id === activeCommentId ? ' active' : '') + (c.status === 'resolved' ? ' resolved' : '') + '" style="left:' + leftPct + '%;top:' + topPct + '%"></span>';
   }).join('');
   let pending = '';
   if (pendingCommentPoint) {
@@ -1681,6 +2330,8 @@ function jumpToComment(id) {
   if (!c || !video) return;
   video.currentTime = c.time;
   activeCommentId = c.id;
+  document.getElementById('commentText').value = c.text || '';
+  document.getElementById('commentAuthor').value = c.author || '';
   renderComments();
   renderCommentDots();
 }
@@ -1689,6 +2340,7 @@ function maybePauseForComment(currentTime) {
   const video = document.getElementById('editorVideo');
   if (!video || video.paused) return;
   for (const c of comments) {
+    if (c.status === 'resolved') continue;
     if (pausedCommentIDs.has(c.id)) continue;
     if (currentTime >= c.time && currentTime <= c.time + 0.25) {
       pausedCommentIDs.add(c.id);
@@ -1717,23 +2369,29 @@ async function createShareLink() {
   form.append('video', selectedFile, selectedFile.name || 'recording.webm');
   form.append('cut_ranges', JSON.stringify(cutRanges));
   form.append('comments', JSON.stringify(comments));
+  form.append('created_by', (document.getElementById('shareAuthor').value || '').trim());
+  form.append('expires_in_hours', document.getElementById('shareExpiryHours').value || '168');
   if (videoDuration > 0) {
     form.append('duration_hint', String(Number(videoDuration.toFixed(3))));
   }
   try {
-    const r = await fetch(API + '/share', { method: 'POST', body: form });
+    const r = await apiFetch(API + '/share', { method: 'POST', body: form });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
     document.getElementById('shareLink').value = d.share_url || '';
     if (d.share_url) {
       navigator.clipboard?.writeText(d.share_url).catch(() => {});
     }
+    if (d.expires_at) {
+      document.getElementById('previewMeta').textContent = document.getElementById('previewMeta').textContent.split(' · ')[0] + ' · share expires ' + formatDateTime(d.expires_at);
+    }
+    queueDraftSave();
     toast('Share link created and copied', 'success');
   } catch (e) {
     toast('Create share link failed: ' + e.message, 'error');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Create Share Link';
+    btn.textContent = 'Create Link';
   }
 }
 
@@ -1743,9 +2401,24 @@ function copyShareLink() {
     toast('No share link available yet', 'error');
     return;
   }
-  navigator.clipboard?.writeText(link)
+  if (!navigator.clipboard || !navigator.clipboard.writeText) {
+    toast('Clipboard API unavailable. Copy manually from the field.', 'error');
+    return;
+  }
+  navigator.clipboard.writeText(link)
     .then(() => toast('Share link copied', 'success'))
     .catch(() => toast('Copy failed. You can copy manually from the field.', 'error'));
+}
+
+function copyNotesReport() {
+  const report = buildNotesReport();
+  if (!navigator.clipboard || !navigator.clipboard.writeText) {
+    toast('Clipboard API unavailable for note export', 'error');
+    return;
+  }
+  navigator.clipboard.writeText(report)
+    .then(() => toast('Notes report copied', 'success'))
+    .catch(() => toast('Copy failed. Report remains available in-page.', 'error'));
 }
 
 function ensurePlayableDuration(video) {
@@ -1820,6 +2493,9 @@ function addCutRange(start, end) {
   document.getElementById('cutEnd').value = e.toFixed(2);
   renderTimeline();
   renderSegments();
+  renderEditorSummary();
+  pushHistorySnapshot();
+  queueDraftSave();
 }
 
 function resetCuts() {
@@ -1827,6 +2503,9 @@ function resetCuts() {
   cutRanges = [];
   renderTimeline();
   renderSegments();
+  renderEditorSummary();
+  pushHistorySnapshot();
+  queueDraftSave();
 }
 
 function removeCut(index) {
@@ -1836,6 +2515,9 @@ function removeCut(index) {
   cutRanges = mergeRanges(cutRanges);
   renderTimeline();
   renderSegments();
+  renderEditorSummary();
+  pushHistorySnapshot();
+  queueDraftSave();
 }
 
 function applyCutRow(index) {
@@ -1857,6 +2539,9 @@ function applyCutRow(index) {
   syncCutBounds();
   renderTimeline();
   renderSegments();
+  renderEditorSummary();
+  pushHistorySnapshot();
+  queueDraftSave();
 }
 
 function resetCutRow(index) {
@@ -1919,9 +2604,10 @@ function getKeepSegments() {
 function renderTimeline() {
   const track = document.getElementById('timelineTrack');
   const playhead = document.getElementById('timelinePlayhead');
-  if (!track || !playhead || !videoDuration) return;
-
+  if (!track || !playhead) return;
   track.querySelectorAll('.timeline-seg,.timeline-cut').forEach(n => n.remove());
+  if (!videoDuration) return;
+
   const keeps = getKeepSegments();
   keeps.forEach(seg => {
     const node = document.createElement('div');
@@ -1975,6 +2661,7 @@ function renderSegments() {
       '<span class="segment-row-id">#' + (idx + 1) + '</span>' +
       '<input class="segment-input" id="cutRowStart_' + idx + '" type="number" min="0" step="0.01" value="' + s.start.toFixed(2) + '">' +
       '<input class="segment-input" id="cutRowEnd_' + idx + '" type="number" min="0" step="0.01" value="' + s.end.toFixed(2) + '">' +
+      '<span class="segment-pill">Cut ' + formatTime(Math.max(0, s.end - s.start)) + '</span>' +
       '<button class="chip-btn warn" type="button" onclick="playCut(' + idx + ')">Play Cut</button>' +
       '<button class="chip-btn" type="button" onclick="applyCutRow(' + idx + ')">Update</button>' +
       '<button class="chip-btn" type="button" onclick="resetCutRow(' + idx + ')">Reset</button>' +
@@ -2026,6 +2713,9 @@ function endCutDrag() {
   syncCutBounds();
   renderTimeline();
   renderSegments();
+  renderEditorSummary();
+  pushHistorySnapshot();
+  queueDraftSave();
 }
 
 function syncCutBounds() {
@@ -2048,20 +2738,397 @@ function updateEditorHUD(time) {
   updatePlayhead();
 }
 
+function seekRelative(delta) {
+  const video = document.getElementById('editorVideo');
+  if (!video || !videoDuration) return;
+  video.currentTime = clamp((video.currentTime || 0) + delta, 0, videoDuration);
+  updateEditorHUD(video.currentTime || 0);
+}
+
+function setPlaybackRate(value) {
+  const video = document.getElementById('editorVideo');
+  if (video) video.playbackRate = parseFloat(value) || 1;
+  queueDraftSave();
+}
+
+function toggleLoopSelection() {
+  loopSelectionEnabled = !loopSelectionEnabled;
+  document.getElementById('loopToggleBtn').textContent = loopSelectionEnabled ? 'Loop Cuts On' : 'Loop Cuts Off';
+}
+
+function renderEditorSummary() {
+  const el = document.getElementById('editorSummary');
+  if (!el) return;
+  const removedDuration = getTotalRemovedDuration();
+  const keptDuration = Math.max(0, videoDuration - removedDuration);
+  const openNotes = comments.filter(c => c.status !== 'resolved').length;
+  const removedLabel = document.getElementById('cutRemovedLabel');
+  if (removedLabel) {
+    removedLabel.textContent = '· Removed ' + formatTime(removedDuration);
+  }
+  el.innerHTML = [
+    '<span class="summary-pill">Duration ' + formatTime(videoDuration) + '</span>',
+    '<span class="summary-pill">Removed ' + formatTime(removedDuration) + '</span>',
+    '<span class="summary-pill">Kept ' + formatTime(keptDuration) + '</span>',
+    '<span class="summary-pill">Cuts ' + cutRanges.length + '</span>',
+    '<span class="summary-pill">Open Notes ' + openNotes + '</span>',
+    '<span class="summary-pill">Resolved ' + (comments.length - openNotes) + '</span>',
+  ].join('');
+}
+
+function captureEditorState() {
+  return {
+    cutRanges: cutRanges.map(c => ({ start: c.start, end: c.end })),
+    comments: comments.map(c => ({
+      id: c.id,
+      time: c.time,
+      x: c.x,
+      y: c.y,
+      text: c.text,
+      status: c.status === 'resolved' ? 'resolved' : 'open',
+      author: c.author || '',
+      created_at: c.created_at || '',
+    })),
+    markStart,
+    markEnd,
+    activeCommentId,
+  };
+}
+
+function getNormalizedCutPayload() {
+  return mergeRanges(cutRanges).map(s => ({
+    start: Number(s.start.toFixed(3)),
+    end: Number(s.end.toFixed(3)),
+  }));
+}
+
+function getTotalRemovedDuration() {
+  return getNormalizedCutPayload().reduce((sum, cut) => sum + Math.max(0, cut.end - cut.start), 0);
+}
+
+function applyEditorState(state) {
+  suppressHistory = true;
+  cutRanges = (state.cutRanges || []).map(c => ({ start: c.start || 0, end: c.end || 0 }));
+	comments = (state.comments || []).map(c => ({
+		id: c.id || randomID(),
+		time: c.time || 0,
+		x: c.x || 0.5,
+		y: c.y || 0.5,
+		text: c.text || '',
+		status: c.status === 'resolved' ? 'resolved' : 'open',
+		author: c.author || '',
+		created_at: c.created_at || '',
+	}));
+  markStart = Number.isFinite(state.markStart) ? state.markStart : null;
+  markEnd = Number.isFinite(state.markEnd) ? state.markEnd : null;
+  activeCommentId = state.activeCommentId || '';
+  syncCutBounds();
+  pausedCommentIDs = new Set();
+  if (activeCommentId) {
+    const selected = comments.find(c => c.id === activeCommentId);
+    document.getElementById('commentText').value = selected ? selected.text : '';
+  } else {
+    document.getElementById('commentText').value = '';
+  }
+  renderTimeline();
+  renderSegments();
+  renderComments();
+  renderCommentDots();
+  renderEditorSummary();
+  suppressHistory = false;
+}
+
+function pushHistorySnapshot() {
+  if (suppressHistory || !selectedFile) {
+    updateHistoryButtons();
+    return;
+  }
+  const next = captureEditorState();
+  const prev = historyStack[historyStack.length - 1];
+  if (prev && JSON.stringify(prev) === JSON.stringify(next)) {
+    updateHistoryButtons();
+    return;
+  }
+  historyStack.push(next);
+  if (historyStack.length > 80) historyStack.shift();
+  redoStack = [];
+  updateHistoryButtons();
+}
+
+function resetHistory() {
+  historyStack = [];
+  redoStack = [];
+}
+
+function updateHistoryButtons() {
+  document.getElementById('undoBtn').disabled = historyStack.length < 2;
+  document.getElementById('redoBtn').disabled = redoStack.length === 0;
+}
+
+function undoHistory() {
+  if (historyStack.length < 2) return;
+  const current = historyStack.pop();
+  redoStack.push(current);
+  applyEditorState(historyStack[historyStack.length - 1]);
+  updateHistoryButtons();
+  queueDraftSave();
+}
+
+function redoHistory() {
+  if (!redoStack.length) return;
+  const next = redoStack.pop();
+  historyStack.push(next);
+  applyEditorState(next);
+  updateHistoryButtons();
+  queueDraftSave();
+}
+
+function loadDraftCache() {
+  draftCacheLoaded = true;
+  try {
+    const raw = localStorage.getItem(APP_DRAFT_KEY);
+    draftCache = raw ? JSON.parse(raw) : null;
+  } catch {
+    draftCache = null;
+  }
+  updateDraftStatus();
+}
+
+function getSelectedFileSignature(file) {
+  const target = file || selectedFile;
+  if (!target) return '';
+  return [target.name || '', target.size || 0, target.type || '', target.lastModified || 0].join('::');
+}
+
+function captureSettingsState() {
+	return {
+		activeProfile,
+    fps: document.getElementById('fps').value,
+    colors: document.getElementById('colors').value,
+    width: document.getElementById('width').value,
+    height: document.getElementById('height').value,
+    dither: document.getElementById('dither').value,
+    bayerScale: document.getElementById('bayerScale').value,
+    speed: document.getElementById('speed').value,
+    loop: document.getElementById('loop').value,
+    optimizePalette: document.getElementById('optimizePalette').checked,
+		recordSystemAudio: document.getElementById('recordSystemAudio').checked,
+		recordMicrophone: document.getElementById('recordMicrophone').checked,
+		recordFrameRate: document.getElementById('recordFrameRate').value,
+		playbackRate: document.getElementById('playbackRate').value,
+		shareAuthor: document.getElementById('shareAuthor').value,
+		commentAuthor: document.getElementById('commentAuthor').value,
+		shareExpiryHours: document.getElementById('shareExpiryHours').value,
+	};
+}
+
+function applySettingsState(state) {
+  if (!state) return;
+  if (state.activeProfile && profiles[state.activeProfile]) {
+    applyProfile(state.activeProfile);
+  }
+  const pairs = [
+    ['fps', state.fps],
+    ['colors', state.colors],
+    ['width', state.width],
+    ['height', state.height],
+    ['dither', state.dither],
+    ['bayerScale', state.bayerScale],
+    ['speed', state.speed],
+    ['loop', state.loop],
+		['recordFrameRate', state.recordFrameRate],
+		['playbackRate', state.playbackRate],
+		['shareAuthor', state.shareAuthor],
+		['commentAuthor', state.commentAuthor],
+		['shareExpiryHours', state.shareExpiryHours],
+	];
+  pairs.forEach(([id, value]) => {
+    if (value === undefined || value === null) return;
+    const el = document.getElementById(id);
+    if (el) el.value = value;
+  });
+  if (state.optimizePalette !== undefined) {
+    document.getElementById('optimizePalette').checked = !!state.optimizePalette;
+  }
+  if (state.recordSystemAudio !== undefined) {
+    document.getElementById('recordSystemAudio').checked = !!state.recordSystemAudio;
+  }
+  if (state.recordMicrophone !== undefined) {
+    document.getElementById('recordMicrophone').checked = !!state.recordMicrophone;
+  }
+  syncSlider('fps', 'fpsVal');
+  syncSlider('colors', 'colorsVal');
+  syncSlider('bayerScale', 'bayerVal');
+  syncSlider('speed', 'speedVal');
+  setPlaybackRate(document.getElementById('playbackRate').value);
+}
+
+function queueDraftSave() {
+  if (!draftCacheLoaded) return;
+  clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(saveDraft, 120);
+}
+
+function saveDraft() {
+  if (!draftCacheLoaded) return;
+  const base = (!selectedFile && draftCache) ? draftCache : {};
+  draftCache = {
+    ...base,
+    saved_at: new Date().toISOString(),
+    active_tab: activeTab,
+    file_signature: selectedFile ? getSelectedFileSignature() : (base.file_signature || ''),
+    file_name: selectedFile ? selectedFile.name : (base.file_name || ''),
+    video_duration: selectedFile ? Number(videoDuration.toFixed ? videoDuration.toFixed(3) : 0) : (base.video_duration || 0),
+    settings: captureSettingsState(),
+    editor: selectedFile ? captureEditorState() : (base.editor || captureEditorState()),
+    share_link: document.getElementById('shareLink').value || '',
+  };
+  try {
+    localStorage.setItem(APP_DRAFT_KEY, JSON.stringify(draftCache));
+  } catch {}
+  updateDraftStatus();
+}
+
+function hasRestorableDraftForFile(file) {
+  return !!(draftCache && file && draftCache.file_signature && draftCache.file_signature === getSelectedFileSignature(file));
+}
+
+function maybeApplyDraftSettings() {
+  if (draftCache && draftCache.settings) {
+    applySettingsState(draftCache.settings);
+    if (draftCache.active_tab) setTab(draftCache.active_tab);
+  }
+}
+
+function maybeRestoreDraftForFile(file) {
+  if (!hasRestorableDraftForFile(file) || !draftCache?.editor) return;
+  applyEditorState(draftCache.editor);
+  document.getElementById('shareLink').value = draftCache.share_link || '';
+  renderEditorSummary();
+  toast('Local draft restored for this file', 'success');
+}
+
+function restoreDraftToCurrentFile() {
+  if (!selectedFile) {
+    toast('Open the matching file first', 'error');
+    return;
+  }
+  if (!hasRestorableDraftForFile(selectedFile)) {
+    toast('No matching draft for this file', 'error');
+    return;
+  }
+  maybeRestoreDraftForFile(selectedFile);
+  pushHistorySnapshot();
+}
+
+function discardDraft() {
+  clearTimeout(draftSaveTimer);
+  draftCache = null;
+  try {
+    localStorage.removeItem(APP_DRAFT_KEY);
+  } catch {}
+  updateDraftStatus();
+}
+
+function updateDraftStatus() {
+  const status = document.getElementById('draftStatus');
+  const restoreBtn = document.getElementById('restoreDraftBtn');
+  if (!status || !restoreBtn) return;
+  if (!draftCache) {
+    status.textContent = 'No local draft yet. Cuts, notes, and review settings will autosave in this browser.';
+    restoreBtn.disabled = true;
+    return;
+  }
+  const savedAt = draftCache.saved_at ? new Date(draftCache.saved_at).toLocaleString() : 'unknown time';
+  if (selectedFile && hasRestorableDraftForFile(selectedFile)) {
+    status.textContent = 'Draft found for "' + (draftCache.file_name || selectedFile.name) + '" from ' + savedAt + '. Restore or continue editing.';
+    restoreBtn.disabled = false;
+    return;
+  }
+  status.textContent = 'Saved draft for "' + (draftCache.file_name || 'untitled session') + '" from ' + savedAt + '. Open the same file to restore cuts and notes.';
+  restoreBtn.disabled = true;
+}
+
+function bindDraftAwareInputs() {
+	['fps', 'colors', 'width', 'height', 'dither', 'bayerScale', 'speed', 'loop', 'optimizePalette', 'recordSystemAudio', 'recordMicrophone', 'recordFrameRate', 'playbackRate', 'cutStart', 'cutEnd', 'shareAuthor', 'commentAuthor', 'shareExpiryHours'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('change', queueDraftSave);
+    el.addEventListener('input', queueDraftSave);
+  });
+}
+
+function setupKeyboardShortcuts() {
+  document.addEventListener('keydown', event => {
+    const tag = (event.target?.tagName || '').toLowerCase();
+    const isTyping = tag === 'input' || tag === 'textarea' || tag === 'select' || event.target?.isContentEditable;
+    const mod = event.metaKey || event.ctrlKey;
+
+    if (mod && event.key.toLowerCase() === 'z') {
+      event.preventDefault();
+      if (event.shiftKey) redoHistory();
+      else undoHistory();
+      return;
+    }
+
+    if (isTyping || !selectedFile) return;
+
+    if (event.code === 'Space') {
+      event.preventDefault();
+      const video = document.getElementById('editorVideo');
+      if (!video) return;
+      if (video.paused) video.play().catch(() => {});
+      else video.pause();
+    } else if (event.key.toLowerCase() === 'j') {
+      event.preventDefault();
+      seekRelative(-5);
+    } else if (event.key.toLowerCase() === 'l') {
+      event.preventDefault();
+      seekRelative(5);
+    } else if (event.key.toLowerCase() === 'i') {
+      event.preventDefault();
+      markCutStart();
+    } else if (event.key.toLowerCase() === 'o') {
+      event.preventDefault();
+      markCutEnd();
+    } else if (event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      cutMarkedRange();
+    } else if (event.key.toLowerCase() === 'n') {
+      event.preventDefault();
+      document.getElementById('commentText').focus();
+    }
+  });
+}
+
+function buildNotesReport() {
+  const title = selectedFile ? selectedFile.name : 'screen-session';
+  const lines = ['Review Notes: ' + title];
+  if (!comments.length) {
+    lines.push('No notes recorded.');
+    return lines.join('\n');
+  }
+  comments.forEach((c, index) => {
+    const author = c.author ? ' @' + c.author : '';
+    lines.push((index + 1) + '. [' + (c.status === 'resolved' ? 'resolved' : 'open') + '] ' + formatTime(c.time) + author + ' - ' + c.text);
+  });
+  return lines.join('\n');
+}
+
 // ── Conversion ────────────────────────────────────────────────────────────
 async function saveEditedVideo() {
   if (!selectedFile) return;
   const btn = document.getElementById('saveBtn');
   const screenBtn = document.getElementById('saveScreenBtn');
+  const bottomBtn = document.getElementById('bottomSaveBtn');
   btn.disabled = true;
   screenBtn.disabled = true;
+  bottomBtn.disabled = true;
   btn.textContent = 'Saving...';
   screenBtn.textContent = 'Saving...';
+  bottomBtn.textContent = 'Saving...';
 
-  const cutPayload = cutRanges.map(s => ({
-    start: Number(s.start.toFixed(3)),
-    end: Number(s.end.toFixed(3)),
-  }));
+  const cutPayload = getNormalizedCutPayload();
 
   const form = new FormData();
   form.append('video', selectedFile, selectedFile.name || 'recording.webm');
@@ -2071,7 +3138,7 @@ async function saveEditedVideo() {
   }
 
   try {
-    const r = await fetch(API + '/save-edited', { method: 'POST', body: form });
+    const r = await apiFetch(API + '/save-edited', { method: 'POST', body: form });
     if (!r.ok) {
       const err = await r.json().catch(() => ({}));
       throw new Error(err.error || ('HTTP ' + r.status));
@@ -2080,14 +3147,16 @@ async function saveEditedVideo() {
     const cd = r.headers.get('content-disposition') || '';
     const filename = parseDownloadFilename(cd) || 'edited-video.mp4';
     downloadBlob(blob, filename);
-    toast('Edited video saved (cut ranges removed)', 'success');
+    toast('Edited video saved with all merged cut ranges removed', 'success');
   } catch (e) {
     toast('Save failed: ' + e.message, 'error');
   } finally {
     btn.disabled = false;
     screenBtn.disabled = false;
+    bottomBtn.disabled = false;
     btn.textContent = 'Save Edited Video';
     screenBtn.textContent = 'Save Video';
+    bottomBtn.textContent = 'Save Video';
   }
 }
 
@@ -2097,9 +3166,11 @@ async function startConvert() {
   const btn = document.getElementById('convertBtn');
   const saveBtn = document.getElementById('saveBtn');
   const saveScreenBtn = document.getElementById('saveScreenBtn');
+  const bottomBtn = document.getElementById('bottomSaveBtn');
   btn.disabled = true;
   saveBtn.disabled = true;
   saveScreenBtn.disabled = true;
+  bottomBtn.disabled = true;
   btn.textContent = 'Uploading...';
 
   const params = {
@@ -2124,7 +3195,7 @@ async function startConvert() {
   form.append('params', JSON.stringify(params));
 
   try {
-    const r = await fetch(API + '/convert', { method: 'POST', body: form });
+    const r = await apiFetch(API + '/convert', { method: 'POST', body: form });
     const job = await r.json();
 
     if (!r.ok) {
@@ -2132,6 +3203,7 @@ async function startConvert() {
       btn.disabled = false;
       saveBtn.disabled = false;
       saveScreenBtn.disabled = false;
+      bottomBtn.disabled = false;
       btn.textContent = 'Convert to GIF';
       return;
     }
@@ -2145,6 +3217,7 @@ async function startConvert() {
     btn.disabled = false;
     saveBtn.disabled = false;
     saveScreenBtn.disabled = false;
+    bottomBtn.disabled = false;
     btn.textContent = 'Convert to GIF';
   }
 }
@@ -2154,7 +3227,7 @@ function pollJob(id) {
   let dots = 0;
   pollInterval = setInterval(async () => {
     try {
-      const r = await fetch(API + '/jobs/' + id);
+      const r = await apiFetch(API + '/jobs/' + id);
       const job = await r.json();
       updateProgress(job, dots++);
 
@@ -2166,6 +3239,7 @@ function pollJob(id) {
         document.getElementById('convertBtn').disabled = false;
         document.getElementById('saveBtn').disabled = false;
         document.getElementById('saveScreenBtn').disabled = false;
+        document.getElementById('bottomSaveBtn').disabled = false;
         loadJobs();
         setTimeout(() => triggerDownload(id, job), 500);
       } else if (job.status === 'failed') {
@@ -2176,6 +3250,7 @@ function pollJob(id) {
         document.getElementById('convertBtn').disabled = false;
         document.getElementById('saveBtn').disabled = false;
         document.getElementById('saveScreenBtn').disabled = false;
+        document.getElementById('bottomSaveBtn').disabled = false;
         loadJobs();
       }
     } catch {}
@@ -2206,7 +3281,7 @@ function showProgress(show) {
 // ── Jobs list ─────────────────────────────────────────────────────────────
 async function loadJobs() {
   try {
-    const r = await fetch(API + '/jobs');
+    const r = await apiFetch(API + '/jobs');
     const jobs = await r.json();
     renderJobs(jobs);
   } catch {}
@@ -2239,7 +3314,7 @@ function renderJobs(jobs) {
 }
 
 async function deleteJob(id) {
-  await fetch(API + '/jobs/' + id, { method: 'DELETE' });
+  await apiFetch(API + '/jobs/' + id, { method: 'DELETE' });
   loadJobs();
 }
 
@@ -2252,7 +3327,7 @@ function triggerDownload(id) {
 // ── Config display ────────────────────────────────────────────────────────
 async function loadConfig() {
   try {
-    const r = await fetch(API + '/config');
+    const r = await apiFetch(API + '/config');
     const cfg = await r.json();
     const panel = document.getElementById('configPanel');
     const rows = [
@@ -2260,8 +3335,11 @@ async function loadConfig() {
       ['Max Upload', formatBytes(cfg.server?.max_upload_bytes)],
       ['Upload Dir', cfg.storage?.upload_dir],
       ['Output Dir', cfg.storage?.output_dir],
+      ['Share Dir', cfg.storage?.share_dir],
       ['Job Timeout', cfg.queue?.job_timeout_sec + 's'],
       ['File TTL', cfg.storage?.max_age_hours + 'h'],
+      ['Auth', cfg.auth?.enabled ? 'enabled' : 'disabled'],
+      ['Share TTL', (cfg.sharing?.default_expiry_hours || 0) + 'h'],
     ];
     panel.innerHTML = rows.map(([k,v]) =>
       '<div class="config-row"><span class="config-key">' + k + '</span><span class="config-val">' + v + '</span></div>'
@@ -2295,6 +3373,13 @@ function formatClock(totalSec) {
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
   return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+function formatDateTime(value) {
+  if (!value) return 'unknown';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return 'unknown';
+  return d.toLocaleString();
 }
 
 function downloadBlob(blob, filename) {
