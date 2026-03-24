@@ -5,19 +5,25 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
+	"os"
 	"os/exec"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/oarkflow/video2gif/internal/config"
 )
 
 // SaveEditedVideo exports an MP4 with all cut ranges removed.
-func SaveEditedVideo(ctx context.Context, inputPath, outputPath string, cutRanges []config.ClipSegment, durationHint float64) error {
+func SaveEditedVideo(ctx context.Context, inputPath, outputPath string, cutRanges []config.ClipSegment, durationHint float64, onProgress ProgressFunc) (*ConversionResult, error) {
+	startedAt := time.Now()
+	reportProgress(onProgress, 0.02, "Probing input", "Inspecting source video")
+
 	info, err := ProbeVideo(ctx, inputPath)
 	if err != nil {
-		return fmt.Errorf("probe video: %w", err)
+		return nil, fmt.Errorf("probe video: %w", err)
 	}
 	duration := info.Duration
 	if duration <= 0 {
@@ -29,20 +35,26 @@ func SaveEditedVideo(ctx context.Context, inputPath, outputPath string, cutRange
 		duration = durationHint
 	}
 	if duration <= 0 {
-		return fmt.Errorf("invalid video duration")
+		return nil, fmt.Errorf("invalid video duration")
 	}
 
 	cuts := normalizeSegments(cutRanges, duration)
 	keeps := inverseSegments(cuts, duration)
 	if len(keeps) == 0 {
-		return fmt.Errorf("all video content has been removed by cut ranges")
+		return nil, fmt.Errorf("all video content has been removed by cut ranges")
 	}
+	outputDuration := sumSegmentDuration(keeps)
+	if outputDuration <= 0 {
+		outputDuration = duration
+	}
+	targetFPS := normalizeEditFPS(info.FPS)
+	gop := strconv.Itoa(int(math.Max(24, math.Round(targetFPS*2))))
 
 	hasAudio, _ := hasAudioStream(ctx, inputPath)
 
 	var args []string
 	if hasAudio {
-		filter := buildKeepConcatFilterWithAudio(keeps)
+		filter := buildKeepConcatFilterWithAudio(keeps, targetFPS)
 		args = []string{
 			"-hide_banner", "-loglevel", "error",
 			"-i", inputPath,
@@ -50,16 +62,21 @@ func SaveEditedVideo(ctx context.Context, inputPath, outputPath string, cutRange
 			"-map", "[vout]",
 			"-map", "[aout]",
 			"-c:v", "libx264",
-			"-preset", "veryfast",
-			"-crf", "18",
+			"-preset", "medium",
+			"-crf", "15",
+			"-profile:v", "high",
+			"-g", gop,
+			"-keyint_min", gop,
 			"-pix_fmt", "yuv420p",
+			"-fps_mode", "cfr",
 			"-c:a", "aac",
-			"-b:a", "160k",
+			"-b:a", "192k",
+			"-ar", "48000",
 			"-movflags", "+faststart",
 			"-y", outputPath,
 		}
 	} else {
-		filter := buildKeepConcatFilter(keeps)
+		filter := buildKeepConcatFilter(keeps, targetFPS)
 		args = []string{
 			"-hide_banner", "-loglevel", "error",
 			"-i", inputPath,
@@ -67,19 +84,43 @@ func SaveEditedVideo(ctx context.Context, inputPath, outputPath string, cutRange
 			"-map", "[vout]",
 			"-an",
 			"-c:v", "libx264",
-			"-preset", "veryfast",
-			"-crf", "18",
+			"-preset", "medium",
+			"-crf", "15",
+			"-profile:v", "high",
+			"-g", gop,
+			"-keyint_min", gop,
 			"-pix_fmt", "yuv420p",
+			"-fps_mode", "cfr",
 			"-movflags", "+faststart",
 			"-y", outputPath,
 		}
 	}
 
-	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("save edited video: %w: %s", err, strings.TrimSpace(string(out)))
+	reportProgress(onProgress, 0.08, "Removing cut ranges", fmt.Sprintf("Keeping %s of %s", formatProgressTime(outputDuration), formatProgressTime(duration)))
+	if err := runFFmpegWithProgress(ctx, args, ffmpegProgressOptions{
+		Label:      "save edited video",
+		Stage:      "Removing cut ranges",
+		Duration:   outputDuration,
+		Base:       0.08,
+		Span:       0.88,
+		OnProgress: onProgress,
+	}); err != nil {
+		return nil, fmt.Errorf("save edited video: %w", err)
 	}
-	return nil
+
+	stat, err := os.Stat(outputPath)
+	if err != nil {
+		return nil, fmt.Errorf("stat output: %w", err)
+	}
+	elapsed := time.Since(startedAt)
+	reportProgress(onProgress, 1.0, "Complete", "Edited video ready")
+
+	return &ConversionResult{
+		OutputPath: outputPath,
+		OutputSize: stat.Size(),
+		Duration:   elapsed,
+		VideoInfo:  info,
+	}, nil
 }
 
 func normalizeSegments(in []config.ClipSegment, duration float64) []config.ClipSegment {
@@ -146,7 +187,17 @@ func inverseSegments(cuts []config.ClipSegment, duration float64) []config.ClipS
 	return out
 }
 
-func buildKeepConcatFilter(keeps []config.ClipSegment) string {
+func sumSegmentDuration(segments []config.ClipSegment) float64 {
+	total := 0.0
+	for _, s := range segments {
+		if s.End > s.Start {
+			total += s.End - s.Start
+		}
+	}
+	return total
+}
+
+func buildKeepConcatFilter(keeps []config.ClipSegment, fps float64) string {
 	parts := make([]string, 0, len(keeps)+1)
 	labels := make([]string, 0, len(keeps))
 	for i, s := range keeps {
@@ -155,11 +206,11 @@ func buildKeepConcatFilter(keeps []config.ClipSegment) string {
 		labels = append(labels, fmt.Sprintf("[%s]", label))
 	}
 	parts = append(parts, fmt.Sprintf("%sconcat=n=%d:v=1:a=0[vtmp]", strings.Join(labels, ""), len(labels)))
-	parts = append(parts, "[vtmp]format=yuv420p[vout]")
+	parts = append(parts, fmt.Sprintf("[vtmp]fps=%.4f,format=yuv420p[vout]", fps))
 	return strings.Join(parts, ";")
 }
 
-func buildKeepConcatFilterWithAudio(keeps []config.ClipSegment) string {
+func buildKeepConcatFilterWithAudio(keeps []config.ClipSegment, fps float64) string {
 	parts := make([]string, 0, len(keeps)*2+1)
 	labels := make([]string, 0, len(keeps)*2)
 	for i, s := range keeps {
@@ -170,9 +221,19 @@ func buildKeepConcatFilterWithAudio(keeps []config.ClipSegment) string {
 		labels = append(labels, fmt.Sprintf("[%s][%s]", vLabel, aLabel))
 	}
 	parts = append(parts, fmt.Sprintf("%sconcat=n=%d:v=1:a=1[vtmp][atmp]", strings.Join(labels, ""), len(keeps)))
-	parts = append(parts, "[vtmp]format=yuv420p[vout]")
-	parts = append(parts, "[atmp]aresample=async=1[aout]")
+	parts = append(parts, fmt.Sprintf("[vtmp]fps=%.4f,format=yuv420p[vout]", fps))
+	parts = append(parts, "[atmp]aresample=async=1:first_pts=0[aout]")
 	return strings.Join(parts, ";")
+}
+
+func normalizeEditFPS(fps float64) float64 {
+	if fps < 10 {
+		return 30
+	}
+	if fps > 60 {
+		return 60
+	}
+	return fps
 }
 
 func hasAudioStream(ctx context.Context, path string) (bool, error) {

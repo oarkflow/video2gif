@@ -59,6 +59,132 @@ const uiHTML = `<!DOCTYPE html>
     margin-top: 16px;
   }
 
+  .workflow-picker {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    padding: 28px 0 10px;
+  }
+
+  @media (max-width: 900px) {
+    .workflow-picker {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .workflow-card {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    background: linear-gradient(180deg, rgba(17,17,24,0.98), rgba(10,12,20,0.98));
+    padding: 26px;
+    cursor: pointer;
+    text-align: left;
+    color: var(--text);
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .workflow-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.9;
+  }
+
+  .workflow-card.screenshare::before {
+    background:
+      radial-gradient(circle at top right, rgba(52,211,153,0.18), transparent 40%),
+      linear-gradient(135deg, rgba(16,185,129,0.16), transparent 55%);
+  }
+
+  .workflow-card.video2gif::before {
+    background:
+      radial-gradient(circle at top right, rgba(167,139,250,0.2), transparent 40%),
+      linear-gradient(135deg, rgba(124,58,237,0.16), transparent 55%);
+  }
+
+  .workflow-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(167,139,250,0.65);
+    box-shadow: 0 18px 42px rgba(0,0,0,0.28);
+  }
+
+  .workflow-card > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .workflow-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .workflow-title {
+    margin-top: 14px;
+    font-size: 1.65rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+  }
+
+  .workflow-copy {
+    margin-top: 12px;
+    color: #cbd5e1;
+    font-size: 0.92rem;
+    line-height: 1.65;
+    max-width: 42ch;
+  }
+
+  .workflow-features {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  @media (max-width: 640px) {
+    .workflow-features {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .workflow-feature {
+    border: 1px solid rgba(148,163,184,0.18);
+    border-radius: 12px;
+    padding: 12px;
+    background: rgba(15,20,32,0.72);
+  }
+
+  .workflow-feature strong {
+    display: block;
+    font-size: 0.82rem;
+    margin-bottom: 5px;
+  }
+
+  .workflow-feature span {
+    display: block;
+    color: var(--muted);
+    font-size: 0.76rem;
+    line-height: 1.55;
+  }
+
+  .workflow-cta {
+    margin-top: 22px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--text);
+  }
+
   .tab-btn {
     border: 1px solid var(--border);
     background: transparent;
@@ -102,6 +228,20 @@ const uiHTML = `<!DOCTYPE html>
   }
 
   main { padding: 20px 0 32px; display: grid; grid-template-columns: 340px 1fr; gap: 18px; align-items: start; }
+
+  main.setup-only {
+    grid-template-columns: minmax(0, 760px);
+    justify-content: center;
+  }
+
+  main.setup-only #sidebarCol {
+    position: static;
+    top: auto;
+  }
+
+  main.setup-only #mainCol {
+    display: none;
+  }
 
   @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
 
@@ -305,6 +445,13 @@ const uiHTML = `<!DOCTYPE html>
     gap: 8px;
     margin-top: 10px;
     flex-wrap: wrap;
+  }
+
+  .mode-copy {
+    color: var(--muted);
+    font-size: 0.8rem;
+    line-height: 1.6;
+    margin-bottom: 14px;
   }
 
   .save-video-wide {
@@ -937,6 +1084,109 @@ const uiHTML = `<!DOCTYPE html>
 
   .progress-status { font-size: 0.75rem; color: var(--accent2); margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
 
+  .progress-steps {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
+    gap: 8px;
+  }
+
+  .progress-step {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px;
+    background: rgba(15,20,32,0.92);
+    color: var(--muted);
+    font-size: 0.7rem;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .progress-step.active {
+    border-color: rgba(167,139,250,0.8);
+    color: var(--accent2);
+    box-shadow: inset 0 0 0 1px rgba(124,58,237,0.25);
+  }
+
+  .progress-step.done {
+    border-color: rgba(16,185,129,0.75);
+    color: #6ee7b7;
+  }
+
+  .progress-step.failed {
+    border-color: rgba(239,68,68,0.8);
+    color: #fca5a5;
+  }
+
+  .result-panel {
+    display: none;
+    margin-top: 16px;
+    border: 1px solid rgba(52,211,153,0.3);
+    border-radius: 12px;
+    padding: 14px;
+    background: linear-gradient(180deg, rgba(10,22,20,0.96), rgba(10,15,24,0.96));
+  }
+
+  .result-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .result-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #d1fae5;
+  }
+
+  .result-meta {
+    font-size: 0.72rem;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 4px;
+  }
+
+  .result-preview {
+    margin-top: 12px;
+  }
+
+  .result-preview video,
+  .result-preview img {
+    width: 100%;
+    max-height: 280px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: #000;
+  }
+
+  .result-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+
+  .result-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(167,139,250,0.5);
+    color: var(--text);
+    text-decoration: none;
+    font-size: 0.76rem;
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(124,58,237,0.14);
+  }
+
+  .result-link.download {
+    border-color: rgba(16,185,129,0.6);
+    background: rgba(16,185,129,0.14);
+    color: #d1fae5;
+  }
+
   /* Jobs list */
   .jobs-list { display: flex; flex-direction: column; gap: 10px; }
 
@@ -1144,54 +1394,93 @@ const uiHTML = `<!DOCTYPE html>
     </div>
   </header>
 
-  <div class="tabs">
+  <section class="workflow-picker" id="workflowPicker">
+    <button class="workflow-card screenshare" type="button" onclick="openWorkflow('screenshare')">
+      <div class="workflow-eyebrow">Capture first</div>
+      <div class="workflow-title">Screenshare</div>
+      <div class="workflow-copy">Record a walkthrough or load a meeting clip, then unlock trimming, timestamped notes, share links, and draft recovery after the video is ready.</div>
+      <div class="workflow-features">
+        <div class="workflow-feature">
+          <strong>Native recorder</strong>
+          <span>Capture the screen with optional system audio and microphone input.</span>
+        </div>
+        <div class="workflow-feature">
+          <strong>Review workflow</strong>
+          <span>Trim, annotate, and export a clean review session once capture finishes.</span>
+        </div>
+      </div>
+      <div class="workflow-cta">Open screenshare workspace →</div>
+    </button>
+
+    <button class="workflow-card video2gif" type="button" onclick="openWorkflow('video2gif')">
+      <div class="workflow-eyebrow">Convert next</div>
+      <div class="workflow-title">Video 2 GIF</div>
+      <div class="workflow-copy">Start with a source video, then reveal profile tuning, conversion controls, queued jobs, and server stats only after the upload is in place.</div>
+      <div class="workflow-features">
+        <div class="workflow-feature">
+          <strong>Profile presets</strong>
+          <span>Switch between fast, balanced, quality, tiny, HD, and custom output profiles.</span>
+        </div>
+        <div class="workflow-feature">
+          <strong>Controlled output</strong>
+          <span>Trim sections before conversion and monitor progress only when the asset is loaded.</span>
+        </div>
+      </div>
+      <div class="workflow-cta">Open GIF workspace →</div>
+    </button>
+  </section>
+
+  <div class="tabs" id="workflowTabs" style="display:none">
     <button class="tab-btn active" id="tabScreenShare" onclick="setTab('screenshare')">1) ScreenShare + Notes</button>
     <button class="tab-btn" id="tabGif" onclick="setTab('video2gif')">2) Video2GIF</button>
   </div>
 
-  <main>
+  <main id="workspaceMain" style="display:none">
     <div id="sidebarCol">
       <div class="card">
-        <div class="card-title">Upload &amp; Configure</div>
+        <div class="card-title" id="intakeCardTitle">Capture Workspace</div>
+        <div class="mode-copy" id="modeCopy">Pick a workflow to get started.</div>
 
-        <div class="recorder-row">
-          <button class="chip-btn" type="button" id="recordStartBtn" onclick="startScreenRecording()">Start Recording</button>
-          <button class="chip-btn" type="button" id="recordPauseBtn" onclick="toggleScreenRecordingPause()" disabled>Pause</button>
-          <button class="chip-btn danger" type="button" id="recordStopBtn" onclick="stopScreenRecording()" disabled>Stop Recording</button>
-          <span class="recorder-status" id="recorderStatus">
-            <span class="rec-indicator"></span>
-            <span id="recorderStatusText">Recorder idle</span>
-          </span>
-        </div>
-
-        <div class="recorder-settings">
-          <label class="inline-check"><input type="checkbox" id="recordSystemAudio" checked>System audio</label>
-          <label class="inline-check"><input type="checkbox" id="recordMicrophone">Microphone</label>
-          <div class="param-group">
-            <label>Capture FPS</label>
-            <select id="recordFrameRate">
-              <option value="24">24 fps</option>
-              <option value="30" selected>30 fps</option>
-              <option value="60">60 fps</option>
-            </select>
+        <div id="screenRecorderBlock">
+          <div class="recorder-row">
+            <button class="chip-btn" type="button" id="recordStartBtn" onclick="startScreenRecording()">Start Recording</button>
+            <button class="chip-btn" type="button" id="recordPauseBtn" onclick="toggleScreenRecordingPause()" disabled>Pause</button>
+            <button class="chip-btn danger" type="button" id="recordStopBtn" onclick="stopScreenRecording()" disabled>Stop Recording</button>
+            <span class="recorder-status" id="recorderStatus">
+              <span class="rec-indicator"></span>
+              <span id="recorderStatusText">Recorder idle</span>
+            </span>
           </div>
-          <div class="param-group">
-            <label>Review Speed</label>
-            <select id="playbackRate" onchange="setPlaybackRate(this.value)">
-              <option value="0.75">0.75×</option>
-              <option value="1" selected>1.00×</option>
-              <option value="1.25">1.25×</option>
-              <option value="1.5">1.50×</option>
-              <option value="2">2.00×</option>
-            </select>
+
+          <div class="recorder-settings">
+            <label class="inline-check"><input type="checkbox" id="recordSystemAudio" checked>System audio</label>
+            <label class="inline-check"><input type="checkbox" id="recordMicrophone">Microphone</label>
+            <div class="param-group">
+              <label>Capture FPS</label>
+              <select id="recordFrameRate">
+                <option value="24">24 fps</option>
+                <option value="30" selected>30 fps</option>
+                <option value="60">60 fps</option>
+              </select>
+            </div>
+            <div class="param-group">
+              <label>Review Speed</label>
+              <select id="playbackRate" onchange="setPlaybackRate(this.value)">
+                <option value="0.75">0.75×</option>
+                <option value="1" selected>1.00×</option>
+                <option value="1.25">1.25×</option>
+                <option value="1.5">1.50×</option>
+                <option value="2">2.00×</option>
+              </select>
+            </div>
           </div>
         </div>
 
         <div class="dropzone" id="dropzone">
           <input type="file" id="fileInput" accept="video/*,.mkv,.avi,.flv,.wmv,.ts,.mts,.m2ts" />
-          <div class="drop-icon">🎬</div>
-          <div class="drop-text"><strong>Drop a video file here</strong> or click to browse</div>
-          <div class="drop-formats">MP4 · MOV · MKV · AVI · WEBM · FLV · WMV · TS · 3GP</div>
+          <div class="drop-icon" id="dropIcon">🎬</div>
+          <div class="drop-text" id="dropText"><strong>Drop a video file here</strong> or click to browse</div>
+          <div class="drop-formats" id="dropFormats">MP4 · MOV · MKV · AVI · WEBM · FLV · WMV · TS · 3GP</div>
         </div>
 
         <div class="file-preview" id="filePreview">
@@ -1222,7 +1511,7 @@ const uiHTML = `<!DOCTYPE html>
           </div>
         </div>
 
-        <div class="draft-panel">
+        <div class="draft-panel" id="draftPanel">
           <div class="draft-head">
             <div class="share-label" style="margin:0">Draft Recovery</div>
             <span class="tag" id="draftTag">local</span>
@@ -1325,12 +1614,26 @@ const uiHTML = `<!DOCTYPE html>
           </div>
           <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
           <div class="progress-status" id="progressDetail"></div>
+          <div class="progress-steps" id="progressSteps"></div>
+        </div>
+        <div class="result-panel" id="resultPanel">
+          <div class="result-head">
+            <div>
+              <div class="result-title" id="resultTitle">Result ready</div>
+              <div class="result-meta" id="resultMeta"></div>
+            </div>
+          </div>
+          <div class="result-preview" id="resultPreview"></div>
+          <div class="result-actions">
+            <a class="result-link" id="resultViewLink" href="#" target="_blank" rel="noopener">Open Result</a>
+            <a class="result-link download" id="resultDownloadLink" href="#">Download</a>
+          </div>
         </div>
       </div>
     </div>
 
     <div id="mainCol">
-      <div class="card editor-card">
+      <div class="card editor-card" id="editorCard">
         <div class="card-title">Video Editor</div>
         <div class="editor-wrap" id="editorWrap">
           <div class="comment-layout">
@@ -1465,6 +1768,7 @@ let recorderTimer = null;
 let recorderStartedAt = 0;
 let recorderElapsedMs = 0;
 let activeTab = 'screenshare';
+let workflowSelected = false;
 let comments = [];
 let commentCaptureMode = false;
 let pendingCommentPoint = null;
@@ -1480,6 +1784,9 @@ let draftCacheLoaded = false;
 let pendingDraftRestore = false;
 let authEnabled = false;
 let isAuthenticated = false;
+let activeJobID = '';
+let activeJobKind = '';
+let activeProgressStep = '';
 
 // ── Init ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -1530,9 +1837,10 @@ async function loadPrivateWorkspace() {
   await loadProfiles();
   await loadJobs();
   await loadConfig();
-  if (!draftCache?.active_tab) {
-    setTab('screenshare');
+  if (draftCache?.active_tab) {
+    activeTab = draftCache.active_tab;
   }
+  refreshWorkspaceUI();
 }
 
 async function apiFetch(url, options) {
@@ -1544,6 +1852,44 @@ async function apiFetch(url, options) {
     handleUnauthorized();
   }
   return response;
+}
+
+async function uploadFormWithProgress(url, form, hooks) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url, true);
+    xhr.withCredentials = true;
+    xhr.responseType = 'json';
+    xhr.upload.addEventListener('progress', event => {
+      if (!hooks?.onProgress || !event.lengthComputable || !event.total) return;
+      hooks.onProgress(event.loaded / event.total, event.loaded, event.total);
+    });
+    xhr.upload.addEventListener('loadend', () => {
+      hooks?.onUploadComplete?.();
+    });
+    xhr.onload = () => {
+      if (xhr.status === 401) handleUnauthorized();
+      let data = xhr.response;
+      if (!data || typeof data === 'string') {
+        try {
+          data = JSON.parse(xhr.responseText || '{}');
+        } catch {
+          data = {};
+        }
+      }
+      resolve({
+        ok: xhr.status >= 200 && xhr.status < 300,
+        status: xhr.status,
+        data: data || {},
+      });
+    };
+    xhr.onloadstart = () => {
+      hooks?.onStart?.();
+    };
+    xhr.onerror = () => reject(new Error('Network error'));
+    xhr.onabort = () => reject(new Error('Upload canceled'));
+    xhr.send(form);
+  });
 }
 
 async function login() {
@@ -1693,18 +2039,86 @@ function syncSlider(sliderId, valId) {
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
+function openWorkflow(name) {
+  workflowSelected = true;
+  setTab(name);
+}
+
+function refreshWorkspaceUI() {
+  const shared = document.body.classList.contains('shared-mode');
+  const hasVideo = !!selectedFile || shared;
+  const showPicker = !shared && !workflowSelected && !selectedFile;
+  const isScreen = activeTab === 'screenshare';
+  const picker = document.getElementById('workflowPicker');
+  const tabs = document.getElementById('workflowTabs');
+  const main = document.getElementById('workspaceMain');
+  const editorCard = document.getElementById('editorCard');
+  const gifCard = document.getElementById('gifCard');
+  const rightPanel = document.getElementById('rightPanel');
+  const shareRow = document.getElementById('shareRow');
+  const draftPanel = document.getElementById('draftPanel');
+  const saveBtn = document.getElementById('saveBtn');
+  const saveScreenBtn = document.getElementById('saveScreenBtn');
+  const bottomSaveWrap = document.getElementById('bottomSaveWrap');
+  const screenRecorderBlock = document.getElementById('screenRecorderBlock');
+  const intakeTitle = document.getElementById('intakeCardTitle');
+  const modeCopy = document.getElementById('modeCopy');
+  const dropIcon = document.getElementById('dropIcon');
+  const dropText = document.getElementById('dropText');
+  const dropFormats = document.getElementById('dropFormats');
+  const tabScreenShare = document.getElementById('tabScreenShare');
+  const tabGif = document.getElementById('tabGif');
+  const convertBtn = document.getElementById('convertBtn');
+
+  if (picker) picker.style.display = showPicker ? 'grid' : 'none';
+  if (tabs) tabs.style.display = showPicker || shared ? 'none' : 'flex';
+  if (main) {
+    main.style.display = showPicker ? 'none' : 'grid';
+    main.classList.toggle('setup-only', !shared && !hasVideo);
+  }
+  if (tabScreenShare) tabScreenShare.classList.toggle('active', isScreen);
+  if (tabGif) tabGif.classList.toggle('active', !isScreen);
+
+  if (screenRecorderBlock) screenRecorderBlock.style.display = isScreen ? 'block' : 'none';
+  if (editorCard) editorCard.style.display = hasVideo ? 'block' : 'none';
+  if (gifCard) gifCard.style.display = !isScreen && hasVideo ? 'block' : 'none';
+  if (rightPanel) rightPanel.style.display = !isScreen && hasVideo ? 'flex' : 'none';
+  if (shareRow) shareRow.style.display = isScreen && hasVideo ? 'block' : 'none';
+  if (draftPanel) draftPanel.style.display = hasVideo ? 'block' : 'none';
+  if (convertBtn) convertBtn.style.display = isScreen ? 'none' : 'block';
+  if (saveBtn) saveBtn.style.display = !isScreen ? 'block' : 'none';
+  if (saveScreenBtn) saveScreenBtn.style.display = isScreen && hasVideo ? 'block' : 'none';
+  if (bottomSaveWrap) bottomSaveWrap.style.display = selectedFile ? 'flex' : 'none';
+
+  if (intakeTitle) {
+    intakeTitle.textContent = isScreen ? (hasVideo ? 'ScreenShare Review' : 'ScreenShare Capture') : (hasVideo ? 'Video 2 GIF Setup' : 'Video 2 GIF Intake');
+  }
+  if (modeCopy) {
+    modeCopy.textContent = isScreen
+      ? (hasVideo
+        ? 'Your recording is ready. Trimming, notes, sharing, draft recovery, and clean video export are now available.'
+        : 'Start a screen recording or upload an existing capture. Review, sharing, and recovery tools stay hidden until a video is ready.')
+      : (hasVideo
+        ? 'Your source video is loaded. Profiles, fine-tuning, jobs, config, and conversion controls are now available.'
+        : 'Upload a source video first. GIF tuning, jobs, and server-side conversion controls appear only after the file is loaded.');
+  }
+  if (dropIcon) dropIcon.textContent = isScreen ? '🖥️' : '🎬';
+  if (dropText) {
+    dropText.innerHTML = isScreen
+      ? '<strong>Drop a screen recording here</strong> or click to browse'
+      : '<strong>Drop a video file here</strong> or click to browse';
+  }
+  if (dropFormats) {
+    dropFormats.textContent = isScreen
+      ? 'WEBM · MP4 · MOV · MKV · AVI · WMV · TS'
+      : 'MP4 · MOV · MKV · AVI · WEBM · FLV · WMV · TS · 3GP';
+  }
+}
+
 function setTab(name) {
+  workflowSelected = true;
   activeTab = name;
-  const isScreen = name === 'screenshare';
-  document.getElementById('tabScreenShare').classList.toggle('active', isScreen);
-  document.getElementById('tabGif').classList.toggle('active', !isScreen);
-  document.getElementById('gifCard').style.display = isScreen ? 'none' : 'block';
-  document.getElementById('rightPanel').style.display = isScreen ? 'none' : 'flex';
-  document.getElementById('shareRow').style.display = isScreen ? 'block' : 'none';
-  document.getElementById('convertBtn').style.display = isScreen ? 'none' : 'block';
-  document.getElementById('saveBtn').style.display = isScreen ? 'block' : 'none';
-  document.getElementById('saveScreenBtn').style.display = isScreen ? 'block' : 'none';
-  document.getElementById('bottomSaveWrap').style.display = selectedFile ? 'flex' : 'none';
+  refreshWorkspaceUI();
   queueDraftSave();
 }
 
@@ -1715,6 +2129,7 @@ async function maybeLoadSharedSession() {
     const r = await apiFetch(API + '/share/' + id);
     if (!r.ok) throw new Error('share not found');
     const d = await r.json();
+    workflowSelected = true;
     setTab('screenshare');
     activeCommentId = '';
     document.getElementById('commentText').value = '';
@@ -1732,6 +2147,7 @@ async function maybeLoadSharedSession() {
 	const wrap = document.getElementById('editorWrap');
 	const video = document.getElementById('editorVideo');
 	document.body.classList.add('shared-mode');
+    refreshWorkspaceUI();
 	wrap.style.display = 'block';
 	document.getElementById('shareAuthor').value = d.created_by || '';
 	document.getElementById('previewName').textContent = d.file_name || 'shared-video';
@@ -1754,6 +2170,7 @@ async function maybeLoadSharedSession() {
     toast('Loaded shared session', 'success');
   } catch (e) {
     document.body.classList.remove('shared-mode');
+    refreshWorkspaceUI();
     toast('Could not load shared session: ' + e.message, 'error');
   }
 }
@@ -2054,6 +2471,11 @@ function setupDragDrop() {
 
 function handleFile(file) {
   selectedFile = file;
+  activeJobID = '';
+  activeJobKind = '';
+  activeProgressStep = '';
+  clearInterval(pollInterval);
+  workflowSelected = true;
   comments = [];
   pendingCommentPoint = null;
   activeCommentId = '';
@@ -2068,17 +2490,22 @@ function handleFile(file) {
   document.getElementById('saveScreenBtn').disabled = false;
   document.getElementById('bottomSaveBtn').disabled = false;
   document.getElementById('shareBtn').disabled = false;
-  document.getElementById('bottomSaveWrap').style.display = 'flex';
   document.getElementById('restoreDraftBtn').disabled = !hasRestorableDraftForFile(file);
+  clearResultPanel();
   initEditor(file);
   resetHistory();
   pendingDraftRestore = hasRestorableDraftForFile(file);
+  refreshWorkspaceUI();
   updateDraftStatus();
 }
 
 function clearFile() {
   stopCutPreview();
   selectedFile = null;
+  activeJobID = '';
+  activeJobKind = '';
+  activeProgressStep = '';
+  clearInterval(pollInterval);
   document.getElementById('fileInput').value = '';
   document.getElementById('filePreview').style.display = 'none';
   document.getElementById('shareLink').value = '';
@@ -2087,7 +2514,6 @@ function clearFile() {
   document.getElementById('saveScreenBtn').disabled = true;
   document.getElementById('bottomSaveBtn').disabled = true;
   document.getElementById('shareBtn').disabled = true;
-  document.getElementById('bottomSaveWrap').style.display = 'none';
   document.getElementById('restoreDraftBtn').disabled = !draftCache;
   document.getElementById('progressWrap').style.display = 'none';
   document.getElementById('editorWrap').style.display = 'none';
@@ -2106,12 +2532,14 @@ function clearFile() {
   document.getElementById('commentText').value = '';
   renderCommentDots();
   renderComments();
+  clearResultPanel();
   if (editorObjectURL) {
     URL.revokeObjectURL(editorObjectURL);
     editorObjectURL = '';
   }
   resetHistory();
   updateHistoryButtons();
+  refreshWorkspaceUI();
   updateDraftStatus();
 }
 
@@ -2996,7 +3424,10 @@ function hasRestorableDraftForFile(file) {
 function maybeApplyDraftSettings() {
   if (draftCache && draftCache.settings) {
     applySettingsState(draftCache.settings);
-    if (draftCache.active_tab) setTab(draftCache.active_tab);
+    if (draftCache.active_tab) {
+      activeTab = draftCache.active_tab;
+    }
+    refreshWorkspaceUI();
   }
 }
 
@@ -3118,18 +3549,14 @@ function buildNotesReport() {
 // ── Conversion ────────────────────────────────────────────────────────────
 async function saveEditedVideo() {
   if (!selectedFile) return;
-  const btn = document.getElementById('saveBtn');
-  const screenBtn = document.getElementById('saveScreenBtn');
-  const bottomBtn = document.getElementById('bottomSaveBtn');
-  btn.disabled = true;
-  screenBtn.disabled = true;
-  bottomBtn.disabled = true;
-  btn.textContent = 'Saving...';
-  screenBtn.textContent = 'Saving...';
-  bottomBtn.textContent = 'Saving...';
+  setActionButtonsBusy('save');
+  clearResultPanel();
+  activeJobKind = 'video';
+  activeProgressStep = 'uploading';
+  showProgress(true);
+  setProgress(1, 'Uploading source video...', 'Preparing edited-video job', 'uploading', false, 1);
 
   const cutPayload = getNormalizedCutPayload();
-
   const form = new FormData();
   form.append('video', selectedFile, selectedFile.name || 'recording.webm');
   form.append('cut_ranges', JSON.stringify(cutPayload));
@@ -3138,40 +3565,41 @@ async function saveEditedVideo() {
   }
 
   try {
-    const r = await apiFetch(API + '/save-edited', { method: 'POST', body: form });
-    if (!r.ok) {
-      const err = await r.json().catch(() => ({}));
-      throw new Error(err.error || ('HTTP ' + r.status));
+    const response = await uploadFormWithProgress(API + '/save-edited', form, {
+      onProgress: (ratio, loaded, total) => {
+        const pct = Math.max(1, Math.min(20, Math.round(ratio * 20)));
+        setProgress(pct, 'Uploading source video...', formatBytes(loaded) + ' / ' + formatBytes(total), 'uploading', false, Math.max(1, Math.min(100, Math.round(ratio * 100))));
+      },
+      onUploadComplete: () => {
+        setProgress(22, 'Upload complete', 'Server is validating the file and creating the edit job', 'setup', false, 5);
+      },
+    });
+    if (!response.ok) {
+      throw new Error(response.data.error || ('HTTP ' + response.status));
     }
-    const blob = await r.blob();
-    const cd = r.headers.get('content-disposition') || '';
-    const filename = parseDownloadFilename(cd) || 'edited-video.mp4';
-    downloadBlob(blob, filename);
-    toast('Edited video saved with all merged cut ranges removed', 'success');
+    const job = response.data;
+    setProgress(28, 'Queued...', 'Edited video job accepted by the server', 'queued');
+    pollJob(job.id);
+    toast('Edited video job queued. You’ll see the finished MP4 below when it completes.', 'success');
   } catch (e) {
+    setProgress(0, 'Save failed', e.message || 'Unable to save edited video', activeProgressStep || 'uploading', true);
+    setTimeout(() => showProgress(false), 1800);
     toast('Save failed: ' + e.message, 'error');
   } finally {
-    btn.disabled = false;
-    screenBtn.disabled = false;
-    bottomBtn.disabled = false;
-    btn.textContent = 'Save Edited Video';
-    screenBtn.textContent = 'Save Video';
-    bottomBtn.textContent = 'Save Video';
+    if (!activeJobID) {
+      setActionButtonsIdle();
+    }
   }
 }
 
 async function startConvert() {
   if (!selectedFile) return;
-
-  const btn = document.getElementById('convertBtn');
-  const saveBtn = document.getElementById('saveBtn');
-  const saveScreenBtn = document.getElementById('saveScreenBtn');
-  const bottomBtn = document.getElementById('bottomSaveBtn');
-  btn.disabled = true;
-  saveBtn.disabled = true;
-  saveScreenBtn.disabled = true;
-  bottomBtn.disabled = true;
-  btn.textContent = 'Uploading...';
+  setActionButtonsBusy('convert');
+  clearResultPanel();
+  activeJobKind = 'gif';
+  activeProgressStep = 'uploading';
+  showProgress(true);
+  setProgress(1, 'Uploading source video...', 'Preparing GIF job', 'uploading', false, 1);
 
   const params = {
     fps: parseFloat(document.getElementById('fps').value),
@@ -3195,87 +3623,293 @@ async function startConvert() {
   form.append('params', JSON.stringify(params));
 
   try {
-    const r = await apiFetch(API + '/convert', { method: 'POST', body: form });
-    const job = await r.json();
-
-    if (!r.ok) {
-      toast('Upload failed: ' + (job.error || r.status), 'error');
-      btn.disabled = false;
-      saveBtn.disabled = false;
-      saveScreenBtn.disabled = false;
-      bottomBtn.disabled = false;
-      btn.textContent = 'Convert to GIF';
-      return;
+    const response = await uploadFormWithProgress(API + '/convert', form, {
+      onProgress: (ratio, loaded, total) => {
+        const pct = Math.max(1, Math.min(20, Math.round(ratio * 20)));
+        setProgress(pct, 'Uploading source video...', formatBytes(loaded) + ' / ' + formatBytes(total), 'uploading', false, Math.max(1, Math.min(100, Math.round(ratio * 100))));
+      },
+      onUploadComplete: () => {
+        setProgress(22, 'Upload complete', 'Server is validating the file and creating the GIF job', 'setup', false, 5);
+      },
+    });
+    const job = response.data;
+    if (!response.ok) {
+      throw new Error(job.error || ('HTTP ' + response.status));
     }
-
-    btn.textContent = 'Processing...';
-    showProgress(true);
+    setProgress(28, 'Queued...', 'GIF job accepted by the server', 'queued');
     pollJob(job.id);
     toast('Job submitted! ID: ' + job.id.slice(0,8) + '…', 'success');
-  } catch(e) {
+  } catch (e) {
+    setProgress(0, 'Upload failed', e.message || 'Unable to start conversion', activeProgressStep || 'uploading', true);
+    setTimeout(() => showProgress(false), 1800);
     toast('Network error: ' + e.message, 'error');
-    btn.disabled = false;
-    saveBtn.disabled = false;
-    saveScreenBtn.disabled = false;
-    bottomBtn.disabled = false;
-    btn.textContent = 'Convert to GIF';
+  } finally {
+    if (!activeJobID) {
+      setActionButtonsIdle();
+    }
   }
 }
 
 function pollJob(id) {
   clearInterval(pollInterval);
-  let dots = 0;
-  pollInterval = setInterval(async () => {
+  activeJobID = id;
+
+  const tick = async () => {
     try {
       const r = await apiFetch(API + '/jobs/' + id);
       const job = await r.json();
-      updateProgress(job, dots++);
+      if (!r.ok) throw new Error(job.error || ('HTTP ' + r.status));
+      updateProgress(job);
 
       if (job.status === 'done') {
         clearInterval(pollInterval);
-        setProgress(100, 'Complete!', '✅ GIF ready for download');
-        toast('🎉 Conversion complete!', 'success');
-        document.getElementById('convertBtn').textContent = 'Convert to GIF';
-        document.getElementById('convertBtn').disabled = false;
-        document.getElementById('saveBtn').disabled = false;
-        document.getElementById('saveScreenBtn').disabled = false;
-        document.getElementById('bottomSaveBtn').disabled = false;
+        activeJobID = '';
+        const downloadKind = job.kind === 'video' ? 'Edited video' : 'GIF';
+        setProgress(100, 'Complete!', downloadKind + ' ready for download', 'complete', false, 100);
+        showJobResult(job);
+        toast(downloadKind + ' complete!', 'success');
+        setActionButtonsIdle();
         loadJobs();
-        setTimeout(() => triggerDownload(id, job), 500);
       } else if (job.status === 'failed') {
         clearInterval(pollInterval);
-        setProgress(0, 'Failed', '❌ ' + (job.error || 'Unknown error'));
-        toast('Conversion failed: ' + (job.error||''), 'error');
-        document.getElementById('convertBtn').textContent = 'Convert to GIF';
-        document.getElementById('convertBtn').disabled = false;
-        document.getElementById('saveBtn').disabled = false;
-        document.getElementById('saveScreenBtn').disabled = false;
-        document.getElementById('bottomSaveBtn').disabled = false;
+        activeJobID = '';
+        setProgress(jobProgressPercent(job), 'Failed', '❌ ' + (job.error || 'Unknown error'), deriveJobStep(job), true, deriveStagePercent(job, deriveJobStep(job)));
+        toast((job.kind === 'video' ? 'Video export failed: ' : 'Conversion failed: ') + (job.error || ''), 'error');
+        setActionButtonsIdle();
         loadJobs();
       }
-    } catch {}
-  }, 1200);
+    } catch (e) {
+      if (!activeJobID) return;
+      setProgress(24, 'Checking job status...', 'Retrying after a temporary network issue', activeProgressStep || 'queued');
+    }
+  };
+
+  tick();
+  pollInterval = setInterval(tick, 1200);
 }
 
-function updateProgress(job, tick) {
-  const statusLabels = { queued:'Queued...', running:'Processing with FFmpeg...', done:'Complete!', failed:'Failed' };
-  const pct = job.status === 'running' ? Math.min(90, tick * 8) : job.status === 'done' ? 100 : 0;
-  const detail = job.status === 'running'
-    ? ['Generating palette...','Rendering frames...','Applying dithering...','Optimizing GIF...'][tick % 4]
-    : '';
-  setProgress(pct, statusLabels[job.status] || job.status, detail);
+function updateProgress(job) {
+  const statusLabels = {
+    queued: 'Queued...',
+    running: job.stage || 'Processing with FFmpeg...',
+    done: 'Complete!',
+    failed: 'Failed',
+  };
+  const detail = job.detail || (job.status === 'queued' ? 'Waiting for an available worker...' : '');
+  activeJobKind = job.kind || activeJobKind;
+  const stepKey = deriveJobStep(job);
+  setProgress(jobProgressPercent(job), statusLabels[job.status] || job.status, detail, stepKey, false, deriveStagePercent(job, stepKey));
+  loadJobs();
 }
 
-function setProgress(pct, label, detail) {
+function jobProgressPercent(job) {
+  if (!job) return 0;
+  if (job.status === 'done') return 100;
+  if (job.status === 'failed') {
+    const prior = Number(job.progress || 0);
+    return Math.max(0, Math.min(99, Math.round(20 + (prior * 80))));
+  }
+  if (job.status === 'queued') return 20;
+  const raw = Number(job.progress || 0);
+  return Math.max(21, Math.min(99, Math.round(20 + (raw * 80))));
+}
+
+function setActionButtonsBusy(mode) {
+  const convertBtn = document.getElementById('convertBtn');
+  const saveBtn = document.getElementById('saveBtn');
+  const saveScreenBtn = document.getElementById('saveScreenBtn');
+  const bottomBtn = document.getElementById('bottomSaveBtn');
+  convertBtn.disabled = true;
+  saveBtn.disabled = true;
+  saveScreenBtn.disabled = true;
+  bottomBtn.disabled = true;
+  convertBtn.textContent = mode === 'convert' ? 'Uploading...' : 'Convert to GIF';
+  saveBtn.textContent = mode === 'save' ? 'Uploading...' : 'Save Edited Video';
+  saveScreenBtn.textContent = mode === 'save' ? 'Uploading...' : 'Save Video';
+  bottomBtn.textContent = mode === 'save' ? 'Uploading...' : 'Save Video';
+}
+
+function setActionButtonsIdle() {
+  const hasVideo = !!selectedFile;
+  const convertBtn = document.getElementById('convertBtn');
+  const saveBtn = document.getElementById('saveBtn');
+  const saveScreenBtn = document.getElementById('saveScreenBtn');
+  const bottomBtn = document.getElementById('bottomSaveBtn');
+  convertBtn.disabled = !hasVideo;
+  saveBtn.disabled = !hasVideo;
+  saveScreenBtn.disabled = !hasVideo;
+  bottomBtn.disabled = !hasVideo;
+  convertBtn.textContent = 'Convert to GIF';
+  saveBtn.textContent = 'Save Edited Video';
+  saveScreenBtn.textContent = 'Save Video';
+  bottomBtn.textContent = 'Save Video';
+}
+
+function renderProgressSteps(kind, activeStep, failed) {
+  const el = document.getElementById('progressSteps');
+  if (!el) return;
+  const steps = kind === 'video'
+    ? [
+        ['uploading', 'Uploading'],
+        ['queued', 'Queued'],
+        ['setup', 'Setup'],
+        ['cutting', 'Cutting'],
+        ['joining', 'Joining'],
+        ['finalizing', 'Finalizing'],
+        ['complete', 'Complete'],
+      ]
+    : [
+        ['uploading', 'Uploading'],
+        ['queued', 'Queued'],
+        ['setup', 'Setup'],
+        ['palette', 'Palette'],
+        ['rendering', 'Rendering'],
+        ['finalizing', 'Finalizing'],
+        ['complete', 'Complete'],
+      ];
+  const activeIndex = Math.max(0, steps.findIndex(step => step[0] === activeStep));
+  el.innerHTML = steps.map((step, index) => {
+    const cls = index < activeIndex
+      ? 'done'
+      : index === activeIndex
+        ? (failed ? 'failed' : 'active')
+        : '';
+    return '<div class="progress-step ' + cls + '">' + step[1] + '</div>';
+  }).join('');
+}
+
+function stepLabel(kind, stepKey) {
+  const labels = kind === 'video'
+    ? {
+        uploading: 'Uploading',
+        queued: 'Queued',
+        setup: 'Setup',
+        cutting: 'Cutting',
+        joining: 'Joining',
+        finalizing: 'Finalizing',
+        complete: 'Complete',
+      }
+    : {
+        uploading: 'Uploading',
+        queued: 'Queued',
+        setup: 'Setup',
+        palette: 'Palette',
+        rendering: 'Rendering',
+        finalizing: 'Finalizing',
+        complete: 'Complete',
+      };
+  return labels[stepKey] || 'Processing';
+}
+
+function deriveJobStep(job) {
+  if (!job) return activeProgressStep || 'uploading';
+  if (job.status === 'queued') return 'queued';
+  if (job.status === 'done') return 'complete';
+  if (job.status === 'failed') return activeProgressStep || 'finalizing';
+  const stage = String(job.stage || '').toLowerCase();
+  const progress = Number(job.progress || 0);
+  if (stage.includes('prob') || stage.includes('start')) return 'setup';
+  if ((job.kind || activeJobKind) === 'video') {
+    if (progress < 0.15) return 'setup';
+    if (progress < 0.62) return 'cutting';
+    if (progress < 0.9) return 'joining';
+    return 'finalizing';
+  }
+  if (stage.includes('palette') || progress < 0.45) return 'palette';
+  if (progress < 0.9) return 'rendering';
+  return 'finalizing';
+}
+
+function deriveStagePercent(job, stepKey) {
+  if (!job || !stepKey) return null;
+  if (job.status === 'done') return 100;
+  if (job.status === 'queued') return null;
+  const raw = Number(job.progress || 0);
+  const ranges = (job.kind || activeJobKind) === 'video'
+    ? {
+        setup: [0, 0.08],
+        cutting: [0.08, 0.62],
+        joining: [0.62, 0.9],
+        finalizing: [0.9, 1.0],
+      }
+    : {
+        setup: [0, 0.08],
+        palette: [0.08, 0.45],
+        rendering: [0.45, 0.9],
+        finalizing: [0.9, 1.0],
+      };
+  const range = ranges[stepKey];
+  if (!range) return null;
+  const start = range[0];
+  const end = range[1];
+  if (end <= start) return 100;
+  const normalized = (raw - start) / (end - start);
+  return Math.max(1, Math.min(100, Math.round(normalized * 100)));
+}
+
+function showJobResult(job) {
+  const panel = document.getElementById('resultPanel');
+  const title = document.getElementById('resultTitle');
+  const meta = document.getElementById('resultMeta');
+  const preview = document.getElementById('resultPreview');
+  const viewLink = document.getElementById('resultViewLink');
+  const downloadLink = document.getElementById('resultDownloadLink');
+  if (!panel || !title || !meta || !preview || !viewLink || !downloadLink || !job) return;
+
+  const viewURL = API + '/jobs/' + job.id + '/view';
+  const downloadURL = API + '/jobs/' + job.id + '/download';
+  const size = job.result?.output_size ? formatBytes(job.result.output_size) : '';
+  const fileName = job.download_name || job.file_name || 'result';
+  const kindLabel = job.kind === 'video' ? 'Edited video' : 'GIF';
+
+  title.textContent = kindLabel + ' ready';
+  meta.textContent = [fileName, size, job.stage || 'Complete'].filter(Boolean).join(' · ');
+  viewLink.href = viewURL;
+  viewLink.textContent = job.kind === 'video' ? 'Open Video' : 'Open GIF';
+  downloadLink.href = downloadURL;
+  downloadLink.textContent = job.kind === 'video' ? 'Download MP4' : 'Download GIF';
+
+  if (job.kind === 'video') {
+    preview.innerHTML = '<video controls preload="metadata" src="' + viewURL + '"></video>';
+  } else {
+    preview.innerHTML = '<img alt="Rendered GIF preview" src="' + viewURL + '">';
+  }
+
+  panel.style.display = 'block';
+}
+
+function clearResultPanel() {
+  const panel = document.getElementById('resultPanel');
+  const preview = document.getElementById('resultPreview');
+  if (panel) panel.style.display = 'none';
+  if (preview) preview.innerHTML = '';
+}
+
+function setProgress(pct, label, detail, stepKey, failed, stagePct) {
+  if (stepKey) activeProgressStep = stepKey;
   document.getElementById('progressFill').style.width = pct + '%';
-  document.getElementById('progressStatus').textContent = label;
+  const kind = activeJobKind || 'video';
+  let heading = label;
+  if (!failed && stepKey) {
+    if (stepKey === 'complete') {
+      heading = 'Complete (100%)';
+    } else if (stagePct != null) {
+      heading = stepLabel(kind, stepKey) + ' (' + stagePct + '%)...';
+    } else if (stepKey === 'queued') {
+      heading = 'Queued...';
+    } else {
+      heading = stepLabel(kind, stepKey) + '...';
+    }
+  }
+  document.getElementById('progressStatus').textContent = heading;
   document.getElementById('progressPct').textContent = pct ? pct + '%' : '—';
   document.getElementById('progressDetail').textContent = detail;
+  renderProgressSteps(activeJobKind || 'video', activeProgressStep || 'uploading', !!failed);
 }
 
 function showProgress(show) {
   document.getElementById('progressWrap').style.display = show ? 'block' : 'none';
-  if (show) setProgress(0, 'Queued...', 'Waiting for worker...');
+  if (show) setProgress(0, 'Queued...', 'Waiting for worker...', activeProgressStep || 'uploading');
 }
 
 // ── Jobs list ─────────────────────────────────────────────────────────────
@@ -3296,17 +3930,19 @@ function renderJobs(jobs) {
   jobs.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
   el.innerHTML = jobs.slice(0,20).map(j => {
     const size = j.result ? formatBytes(j.result.output_size) : '';
-    const dur  = j.result ? j.result.duration : '';
-    const meta = [j.profile.name, size, dur].filter(Boolean).join(' · ');
+    const kind = j.kind === 'video' ? 'edited mp4' : (j.profile?.name || 'gif');
+    const pct = j.status === 'done' ? '100%' : (j.status === 'failed' ? 'failed' : (jobProgressPercent(j) + '%'));
+    const meta = [kind, j.stage, pct, size].filter(Boolean).join(' · ');
+    const buttonLabel = j.kind === 'video' ? '⬇ MP4' : '⬇ GIF';
     return '<div class="job-item">' +
       '<div class="job-status-dot status-' + j.status + '"></div>' +
       '<div class="job-info">' +
         '<div class="job-name">' + escHtml(j.file_name || 'Unknown') + '</div>' +
-        '<div class="job-meta">' + j.status.toUpperCase() + (meta ? ' · ' + meta : '') + '</div>' +
+        '<div class="job-meta">' + escHtml((j.status || '').toUpperCase() + (meta ? ' · ' + meta : '')) + '</div>' +
       '</div>' +
       '<div class="job-actions">' +
         (j.status === 'done'
-          ? '<button class="btn-sm btn-download" onclick="triggerDownload(\'' + j.id + '\',null)">⬇ GIF</button>'
+          ? '<button class="btn-sm btn-download" onclick="triggerDownload(\'' + j.id + '\')">' + buttonLabel + '</button>'
           : '') +
         '<button class="btn-sm btn-delete" onclick="deleteJob(\'' + j.id + '\')">✕</button>' +
       '</div></div>';
@@ -3315,6 +3951,15 @@ function renderJobs(jobs) {
 
 async function deleteJob(id) {
   await apiFetch(API + '/jobs/' + id, { method: 'DELETE' });
+  if (activeJobID === id) {
+    activeJobID = '';
+    activeJobKind = '';
+    activeProgressStep = '';
+    clearInterval(pollInterval);
+    setActionButtonsIdle();
+    showProgress(false);
+    clearResultPanel();
+  }
   loadJobs();
 }
 

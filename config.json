@@ -21,7 +21,7 @@
 	},
 	"auth": {
 		"enabled": true,
-		"password_sha256": "76950c0c7010efb3c1fd2aaddf8389d8668aa007715c1e887f0b6c48b876fd19",
+		"password_sha256": "5be7f4c9dc7de5e96972026c18bf3ef7c717005b9c3a14bb19c59e8115da465d",
 		"session_ttl_hours": 12
 	},
 	"sharing": {

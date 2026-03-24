@@ -168,10 +168,17 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 	defer f.Close()
 
 	// Construct download filename
-	base := strings.TrimSuffix(job.FileName, filepath.Ext(job.FileName))
-	downloadName := fmt.Sprintf("%s_%s.gif", base, job.Profile.Name)
+	downloadName := job.DownloadName
+	if strings.TrimSpace(downloadName) == "" {
+		base := strings.TrimSuffix(job.FileName, filepath.Ext(job.FileName))
+		downloadName = fmt.Sprintf("%s_%s.gif", base, job.Profile.Name)
+	}
+	contentType := strings.TrimSpace(job.ContentType)
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
 
-	w.Header().Set("Content-Type", "image/gif")
+	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, downloadName))
 	w.Header().Set("Cache-Control", "no-cache")
 
@@ -181,6 +188,49 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.ServeContent(w, r, downloadName, time.Now(), f)
+}
+
+func (s *Server) handleViewJob(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	job, ok := s.queue.Get(id)
+	if !ok {
+		jsonError(w, "job not found", http.StatusNotFound)
+		return
+	}
+	if job.Status != "done" {
+		jsonError(w, "job not completed yet, status: "+job.Status, http.StatusConflict)
+		return
+	}
+
+	f, err := os.Open(job.OutputPath)
+	if err != nil {
+		jsonError(w, "output file not found", http.StatusNotFound)
+		return
+	}
+	defer f.Close()
+
+	name := job.DownloadName
+	if strings.TrimSpace(name) == "" {
+		name = filepath.Base(job.OutputPath)
+	}
+	contentType := strings.TrimSpace(job.ContentType)
+	if contentType == "" {
+		contentType = mime.TypeByExtension(strings.ToLower(filepath.Ext(name)))
+	}
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, name))
+	w.Header().Set("Cache-Control", "no-cache")
+
+	stat, _ := f.Stat()
+	if stat != nil {
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", stat.Size()))
+	}
+
+	http.ServeContent(w, r, name, time.Now(), f)
 }
 
 func (s *Server) handleListProfiles(w http.ResponseWriter, r *http.Request) {
@@ -338,8 +388,6 @@ func (s *Server) handleSaveEdited(w http.ResponseWriter, r *http.Request) {
 	id := uuid.New().String()
 	inputPath := filepath.Join(s.cfg.Storage.TempDir, "edit_in_"+id+ext)
 	outputPath := filepath.Join(s.cfg.Storage.TempDir, "edit_out_"+id+".mp4")
-	defer os.Remove(inputPath)
-	defer os.Remove(outputPath)
 
 	dst, err := os.Create(inputPath)
 	if err != nil {
@@ -353,34 +401,14 @@ func (s *Server) handleSaveEdited(w http.ResponseWriter, r *http.Request) {
 	}
 	dst.Close()
 
-	if err := converter.SaveEditedVideo(r.Context(), inputPath, outputPath, cutRanges, durationHint); err != nil {
-		jsonError(w, "save failed: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	out, err := os.Open(outputPath)
+	job, err := s.queue.SubmitEditedVideo(inputPath, outputPath, header.Filename, cutRanges, durationHint)
 	if err != nil {
-		jsonError(w, "failed to open output file", http.StatusInternalServerError)
+		_ = os.Remove(inputPath)
+		_ = os.Remove(outputPath)
+		jsonError(w, "queue full: "+err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	defer out.Close()
-
-	base := strings.TrimSuffix(header.Filename, filepath.Ext(header.Filename))
-	if base == "" {
-		base = "recording"
-	}
-	downloadName := base + "_edited.mp4"
-	ct := mime.TypeByExtension(strings.ToLower(filepath.Ext(downloadName)))
-	if ct == "" {
-		ct = "application/octet-stream"
-	}
-	w.Header().Set("Content-Type", ct)
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, downloadName))
-	w.Header().Set("Cache-Control", "no-cache")
-	if st, err := out.Stat(); err == nil {
-		w.Header().Set("Content-Length", fmt.Sprintf("%d", st.Size()))
-	}
-	http.ServeContent(w, r, downloadName, time.Now(), out)
+	jsonOK(w, job, http.StatusAccepted)
 }
 
 func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
@@ -459,7 +487,7 @@ func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
 	dst.Close()
 	defer os.Remove(inputPath)
 
-	if err := converter.SaveEditedVideo(r.Context(), inputPath, videoPath, cutRanges, durationHint); err != nil {
+	if _, err := converter.SaveEditedVideo(r.Context(), inputPath, videoPath, cutRanges, durationHint, nil); err != nil {
 		os.Remove(videoPath)
 		jsonError(w, "failed to build shared video: "+err.Error(), http.StatusBadRequest)
 		return

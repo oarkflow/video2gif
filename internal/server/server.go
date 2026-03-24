@@ -65,6 +65,7 @@ func (s *Server) Router() http.Handler {
 	privateAPI.HandleFunc("/jobs", s.handleListJobs).Methods("GET")
 	privateAPI.HandleFunc("/jobs/{id}", s.handleGetJob).Methods("GET")
 	privateAPI.HandleFunc("/jobs/{id}/download", s.handleDownload).Methods("GET")
+	privateAPI.HandleFunc("/jobs/{id}/view", s.handleViewJob).Methods("GET")
 	privateAPI.HandleFunc("/jobs/{id}", s.handleDeleteJob).Methods("DELETE")
 	privateAPI.HandleFunc("/profiles", s.handleListProfiles).Methods("GET")
 	privateAPI.HandleFunc("/profiles/{name}", s.handleGetProfile).Methods("GET")

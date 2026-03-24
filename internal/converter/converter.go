@@ -1,13 +1,11 @@
 package converter
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log"
 	"math"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -52,10 +50,16 @@ type ConversionResult struct {
 
 // Convert runs the full two-pass GIF conversion pipeline.
 func (c *Converter) Convert(ctx context.Context, job *ConversionJob) (*ConversionResult, error) {
+	return c.ConvertWithProgress(ctx, job, nil)
+}
+
+// ConvertWithProgress runs the full two-pass GIF conversion pipeline and emits progress updates.
+func (c *Converter) ConvertWithProgress(ctx context.Context, job *ConversionJob, onProgress ProgressFunc) (*ConversionResult, error) {
 	start := time.Now()
 
 	log.Printf("[%s] Starting conversion: %s → %s (profile: %s)",
 		job.ID, filepath.Base(job.InputPath), filepath.Base(job.OutputPath), job.Profile.Name)
+	reportProgress(onProgress, 0.02, "Probing input", "Inspecting source video")
 
 	// Probe input
 	info, err := ProbeVideo(ctx, job.InputPath)
@@ -74,10 +78,10 @@ func (c *Converter) Convert(ctx context.Context, job *ConversionJob) (*Conversio
 
 	if job.Profile.OptimizePalette {
 		// Two-pass conversion
-		frameCount, err = c.convertTwoPass(ctx, job)
+		frameCount, err = c.convertTwoPass(ctx, job, info.Duration, onProgress)
 	} else {
 		// Single-pass conversion
-		frameCount, err = c.convertSinglePass(ctx, job)
+		frameCount, err = c.convertSinglePass(ctx, job, info.Duration, onProgress)
 	}
 
 	if err != nil {
@@ -93,6 +97,7 @@ func (c *Converter) Convert(ctx context.Context, job *ConversionJob) (*Conversio
 	elapsed := time.Since(start)
 	log.Printf("[%s] Done in %s, output size: %s",
 		job.ID, elapsed.Round(time.Millisecond), FormatBytes(stat.Size()))
+	reportProgress(onProgress, 1.0, "Complete", "GIF ready")
 
 	return &ConversionResult{
 		OutputPath: job.OutputPath,
@@ -103,7 +108,7 @@ func (c *Converter) Convert(ctx context.Context, job *ConversionJob) (*Conversio
 	}, nil
 }
 
-func (c *Converter) convertTwoPass(ctx context.Context, job *ConversionJob) (int, error) {
+func (c *Converter) convertTwoPass(ctx context.Context, job *ConversionJob, duration float64, onProgress ProgressFunc) (int, error) {
 	palettePath := PalettePath(c.cfg.Storage.TempDir, job.ID)
 	defer CleanupPalette(palettePath)
 
@@ -120,7 +125,14 @@ func (c *Converter) convertTwoPass(ctx context.Context, job *ConversionJob) (int
 	)
 
 	log.Printf("[%s] Pass 1: generating palette...", job.ID)
-	if err := runFFmpeg(ctx, pass1Args, job.ID+" pass1"); err != nil {
+	if err := runFFmpegWithProgress(ctx, pass1Args, ffmpegProgressOptions{
+		Label:      job.ID + " pass1",
+		Stage:      "Generating palette",
+		Duration:   duration,
+		Base:       0.08,
+		Span:       0.37,
+		OnProgress: onProgress,
+	}); err != nil {
 		return 0, fmt.Errorf("palette generation failed: %w", err)
 	}
 
@@ -152,14 +164,21 @@ func (c *Converter) convertTwoPass(ctx context.Context, job *ConversionJob) (int
 	)
 
 	log.Printf("[%s] Pass 2: rendering GIF...", job.ID)
-	if err := runFFmpeg(ctx, pass2Args, job.ID+" pass2"); err != nil {
+	if err := runFFmpegWithProgress(ctx, pass2Args, ffmpegProgressOptions{
+		Label:      job.ID + " pass2",
+		Stage:      "Rendering GIF",
+		Duration:   duration,
+		Base:       0.45,
+		Span:       0.5,
+		OnProgress: onProgress,
+	}); err != nil {
 		return 0, fmt.Errorf("GIF rendering failed: %w", err)
 	}
 
 	return estimateFrameCount(job.Profile, job.InputPath, ctx), nil
 }
 
-func (c *Converter) convertSinglePass(ctx context.Context, job *ConversionJob) (int, error) {
+func (c *Converter) convertSinglePass(ctx context.Context, job *ConversionJob, duration float64, onProgress ProgressFunc) (int, error) {
 	p := job.Profile
 	_, singleFilter := BuildPaletteFilter(p)
 
@@ -172,7 +191,14 @@ func (c *Converter) convertSinglePass(ctx context.Context, job *ConversionJob) (
 	)
 
 	log.Printf("[%s] Single pass: rendering GIF...", job.ID)
-	if err := runFFmpeg(ctx, args, job.ID); err != nil {
+	if err := runFFmpegWithProgress(ctx, args, ffmpegProgressOptions{
+		Label:      job.ID,
+		Stage:      "Rendering GIF",
+		Duration:   duration,
+		Base:       0.08,
+		Span:       0.87,
+		OnProgress: onProgress,
+	}); err != nil {
 		return 0, fmt.Errorf("GIF rendering failed: %w", err)
 	}
 
@@ -199,21 +225,6 @@ func buildCommonArgs(job *ConversionJob) []string {
 	}
 
 	return args
-}
-
-// runFFmpeg executes an ffmpeg command and streams stderr for logging.
-func runFFmpeg(ctx context.Context, args []string, label string) error {
-	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
-
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		// Extract meaningful error from stderr
-		errMsg := extractFFmpegError(stderr.String())
-		return fmt.Errorf("[%s] %w\nffmpeg: %s", label, err, errMsg)
-	}
-	return nil
 }
 
 func extractFFmpegError(stderr string) string {
