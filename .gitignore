@@ -3,3 +3,5 @@ uploads
 outputs
 tmp
 ./video2gif
+.gocache
+.gomodcache

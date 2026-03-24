@@ -49,12 +49,13 @@ func SaveEditedVideo(ctx context.Context, inputPath, outputPath string, cutRange
 	}
 	targetFPS := normalizeEditFPS(info.FPS)
 	gop := strconv.Itoa(int(math.Max(24, math.Round(targetFPS*2))))
+	targetW, targetH := normalizeEditDims(info.Width, info.Height)
 
 	hasAudio, _ := hasAudioStream(ctx, inputPath)
 
 	var args []string
 	if hasAudio {
-		filter := buildKeepConcatFilterWithAudio(keeps, targetFPS)
+		filter := buildKeepConcatFilterWithAudio(keeps, targetFPS, targetW, targetH)
 		args = []string{
 			"-hide_banner", "-loglevel", "error",
 			"-i", inputPath,
@@ -76,7 +77,7 @@ func SaveEditedVideo(ctx context.Context, inputPath, outputPath string, cutRange
 			"-y", outputPath,
 		}
 	} else {
-		filter := buildKeepConcatFilter(keeps, targetFPS)
+		filter := buildKeepConcatFilter(keeps, targetFPS, targetW, targetH)
 		args = []string{
 			"-hide_banner", "-loglevel", "error",
 			"-i", inputPath,
@@ -105,7 +106,7 @@ func SaveEditedVideo(ctx context.Context, inputPath, outputPath string, cutRange
 		Span:       0.88,
 		OnProgress: onProgress,
 	}); err != nil {
-		return nil, fmt.Errorf("save edited video: %w", err)
+		return nil, fmt.Errorf("save edited video: %w (keeps=%d audio=%t fps=%.2f target=%dx%d)", err, len(keeps), hasAudio, targetFPS, targetW, targetH)
 	}
 
 	stat, err := os.Stat(outputPath)
@@ -197,12 +198,13 @@ func sumSegmentDuration(segments []config.ClipSegment) float64 {
 	return total
 }
 
-func buildKeepConcatFilter(keeps []config.ClipSegment, fps float64) string {
+func buildKeepConcatFilter(keeps []config.ClipSegment, fps float64, targetW, targetH int) string {
 	parts := make([]string, 0, len(keeps)+1)
 	labels := make([]string, 0, len(keeps))
+	vNorm := videoNormalizeFilter(targetW, targetH)
 	for i, s := range keeps {
 		label := fmt.Sprintf("v%d", i)
-		parts = append(parts, fmt.Sprintf("[0:v]trim=start=%.6f:end=%.6f,setpts=PTS-STARTPTS[%s]", s.Start, s.End, label))
+		parts = append(parts, fmt.Sprintf("[0:v]trim=start=%.6f:end=%.6f,setpts=PTS-STARTPTS%s[%s]", s.Start, s.End, vNorm, label))
 		labels = append(labels, fmt.Sprintf("[%s]", label))
 	}
 	parts = append(parts, fmt.Sprintf("%sconcat=n=%d:v=1:a=0[vtmp]", strings.Join(labels, ""), len(labels)))
@@ -210,14 +212,16 @@ func buildKeepConcatFilter(keeps []config.ClipSegment, fps float64) string {
 	return strings.Join(parts, ";")
 }
 
-func buildKeepConcatFilterWithAudio(keeps []config.ClipSegment, fps float64) string {
+func buildKeepConcatFilterWithAudio(keeps []config.ClipSegment, fps float64, targetW, targetH int) string {
 	parts := make([]string, 0, len(keeps)*2+1)
 	labels := make([]string, 0, len(keeps)*2)
+	vNorm := videoNormalizeFilter(targetW, targetH)
+	aNorm := audioNormalizeFilter()
 	for i, s := range keeps {
 		vLabel := fmt.Sprintf("v%d", i)
 		aLabel := fmt.Sprintf("a%d", i)
-		parts = append(parts, fmt.Sprintf("[0:v]trim=start=%.6f:end=%.6f,setpts=PTS-STARTPTS[%s]", s.Start, s.End, vLabel))
-		parts = append(parts, fmt.Sprintf("[0:a]atrim=start=%.6f:end=%.6f,asetpts=PTS-STARTPTS[%s]", s.Start, s.End, aLabel))
+		parts = append(parts, fmt.Sprintf("[0:v]trim=start=%.6f:end=%.6f,setpts=PTS-STARTPTS%s[%s]", s.Start, s.End, vNorm, vLabel))
+		parts = append(parts, fmt.Sprintf("[0:a]atrim=start=%.6f:end=%.6f,asetpts=PTS-STARTPTS%s[%s]", s.Start, s.End, aNorm, aLabel))
 		labels = append(labels, fmt.Sprintf("[%s][%s]", vLabel, aLabel))
 	}
 	parts = append(parts, fmt.Sprintf("%sconcat=n=%d:v=1:a=1[vtmp][atmp]", strings.Join(labels, ""), len(keeps)))
@@ -226,7 +230,35 @@ func buildKeepConcatFilterWithAudio(keeps []config.ClipSegment, fps float64) str
 	return strings.Join(parts, ";")
 }
 
+func normalizeEditDims(w, h int) (int, int) {
+	if w <= 0 || h <= 0 {
+		return 0, 0
+	}
+	if w%2 != 0 {
+		w++
+	}
+	if h%2 != 0 {
+		h++
+	}
+	return w, h
+}
+
+func videoNormalizeFilter(targetW, targetH int) string {
+	if targetW <= 0 || targetH <= 0 {
+		return ",setsar=1,format=yuv420p"
+	}
+	return fmt.Sprintf(",scale=%d:%d:force_original_aspect_ratio=decrease,pad=%d:%d:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p", targetW, targetH, targetW, targetH)
+}
+
+func audioNormalizeFilter() string {
+	// Normalize audio format per-segment so concat doesn't fail if the stream changes layout/rate mid-recording.
+	return ",aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo"
+}
+
 func normalizeEditFPS(fps float64) float64 {
+	if math.IsNaN(fps) || math.IsInf(fps, 0) || fps <= 0 {
+		return 30
+	}
 	if fps < 10 {
 		return 30
 	}

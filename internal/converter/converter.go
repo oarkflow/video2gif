@@ -228,18 +228,55 @@ func buildCommonArgs(job *ConversionJob) []string {
 }
 
 func extractFFmpegError(stderr string) string {
-	lines := strings.Split(stderr, "\n")
-	for i := len(lines) - 1; i >= 0; i-- {
-		line := strings.TrimSpace(lines[i])
-		if strings.HasPrefix(line, "Error") || strings.HasPrefix(line, "Invalid") ||
-			strings.HasPrefix(line, "No such") || strings.HasPrefix(line, "Unable") {
-			return line
+	rawLines := strings.Split(stderr, "\n")
+	lines := make([]string, 0, len(rawLines))
+	for _, l := range rawLines {
+		t := strings.TrimSpace(l)
+		if t != "" {
+			lines = append(lines, t)
 		}
 	}
-	if len(lines) > 3 {
-		return strings.Join(lines[len(lines)-3:], " | ")
+	if len(lines) == 0 {
+		return ""
 	}
-	return stderr
+
+	isKeyLine := func(line string) bool {
+		switch {
+		case strings.HasPrefix(line, "Error"),
+			strings.HasPrefix(line, "Invalid"),
+			strings.HasPrefix(line, "No such"),
+			strings.HasPrefix(line, "Unable"),
+			strings.HasPrefix(line, "Stream specifier"),
+			strings.HasPrefix(line, "Input link"),
+			strings.HasPrefix(line, "Filter"),
+			strings.HasPrefix(line, "Impossible"),
+			strings.HasPrefix(line, "Cannot"),
+			strings.HasPrefix(line, "Failed"),
+			strings.HasPrefix(line, "Could not"),
+			strings.HasPrefix(line, "Option"):
+			return true
+		default:
+			return false
+		}
+	}
+
+	for i := len(lines) - 1; i >= 0; i-- {
+		if !isKeyLine(lines[i]) {
+			continue
+		}
+		start := i - 2
+		if start < 0 {
+			start = 0
+		}
+		return strings.Join(lines[start:i+1], " | ")
+	}
+
+	// Fallback: last few non-empty lines for context.
+	start := len(lines) - 5
+	if start < 0 {
+		start = 0
+	}
+	return strings.Join(lines[start:], " | ")
 }
 
 func estimateFrameCount(p config.GifProfile, inputPath string, ctx context.Context) int {

@@ -1065,7 +1065,20 @@ const uiHTML = `<!DOCTYPE html>
     padding: 14px;
   }
 
-  .progress-label { font-size: 0.78rem; color: var(--muted); margin-bottom: 8px; display: flex; justify-content: space-between; }
+  .progress-label { font-size: 0.84rem; color: var(--text); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+
+  #progressStatus {
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  #progressPct {
+    min-width: 64px;
+    text-align: right;
+    font-weight: 700;
+    color: var(--accent3);
+    font-family: 'JetBrains Mono', monospace;
+  }
 
   .progress-bar {
     height: 4px;
@@ -1082,7 +1095,7 @@ const uiHTML = `<!DOCTYPE html>
     width: 0%;
   }
 
-  .progress-status { font-size: 0.75rem; color: var(--accent2); margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+  .progress-status { font-size: 0.78rem; color: var(--accent2); margin-top: 8px; font-family: 'JetBrains Mono', monospace; line-height: 1.5; }
 
   .progress-steps {
     margin-top: 12px;
@@ -3667,7 +3680,8 @@ function pollJob(id) {
         const downloadKind = job.kind === 'video' ? 'Edited video' : 'GIF';
         setProgress(100, 'Complete!', downloadKind + ' ready for download', 'complete', false, 100);
         showJobResult(job);
-        toast(downloadKind + ' complete!', 'success');
+        setTimeout(() => triggerDownload(id), 250);
+        toast(downloadKind + ' complete. Download starting...', 'success');
         setActionButtonsIdle();
         loadJobs();
       } else if (job.status === 'failed') {
@@ -3901,9 +3915,17 @@ function setProgress(pct, label, detail, stepKey, failed, stagePct) {
       heading = stepLabel(kind, stepKey) + '...';
     }
   }
+  let percentText = pct ? pct + '%' : '—';
+  if (!failed && stepKey && stagePct != null) {
+    percentText = stagePct + '%';
+  }
+  let detailText = detail || '';
+  if (pct && !failed && stepKey && stepKey !== 'complete') {
+    detailText = 'Overall ' + pct + '%' + (detailText ? ' · ' + detailText : '');
+  }
   document.getElementById('progressStatus').textContent = heading;
-  document.getElementById('progressPct').textContent = pct ? pct + '%' : '—';
-  document.getElementById('progressDetail').textContent = detail;
+  document.getElementById('progressPct').textContent = percentText;
+  document.getElementById('progressDetail').textContent = detailText;
   renderProgressSteps(activeJobKind || 'video', activeProgressStep || 'uploading', !!failed);
 }
 
