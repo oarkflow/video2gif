@@ -1265,6 +1265,134 @@ const uiHTML = `<!DOCTYPE html>
     font-size: 0.85rem;
   }
 
+  /* Task card queue */
+  .task-card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .task-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: var(--surface2);
+    transition: border-color 0.2s;
+  }
+
+  .task-card--done { border-color: rgba(52,211,153,0.4); }
+  .task-card--failed { border-color: rgba(239,68,68,0.4); }
+  .task-card--processing,
+  .task-card--uploading { border-color: rgba(167,139,250,0.4); }
+
+  .task-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .task-card-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .task-card-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .task-card-name {
+    font-size: 0.8rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .task-card-meta {
+    font-size: 0.68rem;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 2px;
+  }
+
+  .task-card-dismiss {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 2px 4px;
+    line-height: 1;
+  }
+
+  .task-card-dismiss:hover { color: var(--danger); }
+
+  .task-card-progress { margin-top: 8px; }
+
+  .task-card-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .task-card-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+    border-radius: 2px;
+    transition: width 0.4s;
+  }
+
+  .task-card--done .task-card-fill { background: var(--accent3); }
+  .task-card--failed .task-card-fill { background: var(--danger); }
+
+  .task-card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .task-card-download,
+  .task-card-view {
+    font-size: 0.7rem;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 4px 10px;
+    border-radius: 6px;
+    text-decoration: none;
+    border: 1px solid;
+  }
+
+  .task-card-download {
+    border-color: rgba(52,211,153,0.5);
+    color: var(--accent3);
+    background: rgba(52,211,153,0.08);
+  }
+
+  .task-card-download:hover {
+    background: rgba(52,211,153,0.18);
+  }
+
+  .task-card-view {
+    border-color: var(--border);
+    color: var(--muted);
+  }
+
+  .task-card-view:hover {
+    border-color: var(--accent2);
+    color: var(--accent2);
+  }
+
+  .task-card-error {
+    margin-top: 6px;
+    font-size: 0.7rem;
+    color: var(--danger);
+    font-family: 'JetBrains Mono', monospace;
+    word-break: break-word;
+  }
+
   /* Config panel */
   .config-panel { margin-top: 16px; }
 
@@ -1643,6 +1771,15 @@ const uiHTML = `<!DOCTYPE html>
           </div>
         </div>
       </div>
+
+      <!-- Processing Queue (task cards for background jobs) -->
+      <div class="card" id="taskQueueCard" style="display:none">
+        <div class="card-title" style="justify-content:space-between">
+          <span>Processing Queue</span>
+          <span id="taskQueueCount" style="font-size:0.74rem;color:var(--accent2);font-family:'JetBrains Mono',monospace">0</span>
+        </div>
+        <div id="taskCardList" class="task-card-list"></div>
+      </div>
     </div>
 
     <div id="mainCol">
@@ -1762,17 +1899,35 @@ const uiHTML = `<!DOCTYPE html>
 <script>
 const API = '/api/v1';
 const APP_DRAFT_KEY = 'video2gif:draft:v2';
-let selectedFile = null;
+
+// ── Session object ────────────────────────────────────────────────────────
+function createSession() {
+  return {
+    id: Math.random().toString(36).slice(2, 10),
+    selectedFile: null,
+    editorObjectURL: '',
+    videoDuration: 0,
+    cutRanges: [],
+    markStart: null,
+    markEnd: null,
+    dragState: null,
+    cutPreview: null,
+    comments: [],
+    commentCaptureMode: false,
+    pendingCommentPoint: null,
+    activeCommentId: '',
+    pausedCommentIDs: new Set(),
+    loopSelectionEnabled: false,
+    historyStack: [],
+    redoStack: [],
+    suppressHistory: false,
+  };
+}
+let currentSession = createSession();
+
+// ── App-level globals (not per-session) ───────────────────────────────────
 let activeProfile = 'balanced';
-let pollInterval = null;
 let profiles = {};
-let editorObjectURL = '';
-let videoDuration = 0;
-let cutRanges = [];
-let markStart = null;
-let markEnd = null;
-let dragState = null;
-let cutPreview = null;
 let recorderStream = null;
 let microphoneStream = null;
 let mediaRecorder = null;
@@ -1782,24 +1937,20 @@ let recorderStartedAt = 0;
 let recorderElapsedMs = 0;
 let activeTab = 'screenshare';
 let workflowSelected = false;
-let comments = [];
-let commentCaptureMode = false;
-let pendingCommentPoint = null;
-let activeCommentId = '';
-let pausedCommentIDs = new Set();
-let loopSelectionEnabled = false;
-let historyStack = [];
-let redoStack = [];
-let suppressHistory = false;
 let draftCache = null;
 let draftSaveTimer = null;
 let draftCacheLoaded = false;
 let pendingDraftRestore = false;
 let authEnabled = false;
 let isAuthenticated = false;
+
+// ── Task card queue (multi-session processing) ───────────────────────────
+let taskCards = [];
+// Legacy single-job state (used by old progress UI, will be replaced by task cards)
 let activeJobID = '';
 let activeJobKind = '';
 let activeProgressStep = '';
+let pollInterval = null;
 
 // ── Init ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -2059,8 +2210,8 @@ function openWorkflow(name) {
 
 function refreshWorkspaceUI() {
   const shared = document.body.classList.contains('shared-mode');
-  const hasVideo = !!selectedFile || shared;
-  const showPicker = !shared && !workflowSelected && !selectedFile;
+  const hasVideo = !!currentSession.selectedFile || shared;
+  const showPicker = !shared && !workflowSelected && !currentSession.selectedFile;
   const isScreen = activeTab === 'screenshare';
   const picker = document.getElementById('workflowPicker');
   const tabs = document.getElementById('workflowTabs');
@@ -2101,7 +2252,7 @@ function refreshWorkspaceUI() {
   if (convertBtn) convertBtn.style.display = isScreen ? 'none' : 'block';
   if (saveBtn) saveBtn.style.display = !isScreen ? 'block' : 'none';
   if (saveScreenBtn) saveScreenBtn.style.display = isScreen && hasVideo ? 'block' : 'none';
-  if (bottomSaveWrap) bottomSaveWrap.style.display = selectedFile ? 'flex' : 'none';
+  if (bottomSaveWrap) bottomSaveWrap.style.display = currentSession.selectedFile ? 'flex' : 'none';
 
   if (intakeTitle) {
     intakeTitle.textContent = isScreen ? (hasVideo ? 'ScreenShare Review' : 'ScreenShare Capture') : (hasVideo ? 'Video 2 GIF Setup' : 'Video 2 GIF Intake');
@@ -2126,6 +2277,12 @@ function refreshWorkspaceUI() {
       ? 'WEBM · MP4 · MOV · MKV · AVI · WMV · TS'
       : 'MP4 · MOV · MKV · AVI · WEBM · FLV · WMV · TS · 3GP';
   }
+
+  // Task queue card — always visible when there are cards
+  const taskQueueCard = document.getElementById('taskQueueCard');
+  if (taskQueueCard) {
+    taskQueueCard.style.display = taskCards.length > 0 ? 'block' : 'none';
+  }
 }
 
 function setTab(name) {
@@ -2144,9 +2301,9 @@ async function maybeLoadSharedSession() {
     const d = await r.json();
     workflowSelected = true;
     setTab('screenshare');
-    activeCommentId = '';
+    currentSession.activeCommentId = '';
     document.getElementById('commentText').value = '';
-	comments = (d.comments || []).map(c => ({
+	currentSession.comments = (d.comments || []).map(c => ({
 		id: c.id || randomID(),
 		time: c.time || 0,
 		x: c.x || 0.5,
@@ -2156,7 +2313,7 @@ async function maybeLoadSharedSession() {
 		author: c.author || '',
 		created_at: c.created_at || '',
 	}));
-    cutRanges = (d.cut_ranges || []).map(c => ({ start: c.start || 0, end: c.end || 0 }));
+    currentSession.cutRanges = (d.cut_ranges || []).map(c => ({ start: c.start || 0, end: c.end || 0 }));
 	const wrap = document.getElementById('editorWrap');
 	const video = document.getElementById('editorVideo');
 	document.body.classList.add('shared-mode');
@@ -2386,7 +2543,7 @@ function setupDragDrop() {
   input.addEventListener('change', () => { if (input.files[0]) handleFile(input.files[0]); });
 
   scrub.addEventListener('input', () => {
-    if (!videoDuration) return;
+    if (!currentSession.videoDuration) return;
     const t = parseFloat(scrub.value) || 0;
     if (video) video.currentTime = t;
     updateEditorHUD(t);
@@ -2395,14 +2552,14 @@ function setupDragDrop() {
   video.addEventListener('loadedmetadata', () => {
     setEditorDuration(Number.isFinite(video.duration) ? video.duration : 0);
     scrub.value = '0';
-    if (!(document.body.classList.contains('shared-mode') && !selectedFile)) {
-      cutRanges = [];
-      comments = [];
-      pendingCommentPoint = null;
-      activeCommentId = '';
-      pausedCommentIDs = new Set();
-      markStart = null;
-      markEnd = null;
+    if (!(document.body.classList.contains('shared-mode') && !currentSession.selectedFile)) {
+      currentSession.cutRanges = [];
+      currentSession.comments = [];
+      currentSession.pendingCommentPoint = null;
+      currentSession.activeCommentId = '';
+      currentSession.pausedCommentIDs = new Set();
+      currentSession.markStart = null;
+      currentSession.markEnd = null;
       document.getElementById('commentText').value = '';
     }
     renderTimeline();
@@ -2412,15 +2569,15 @@ function setupDragDrop() {
     renderEditorSummary();
     updateEditorHUD(0);
     ensurePlayableDuration(video);
-    if (pendingDraftRestore && selectedFile) {
+    if (pendingDraftRestore && currentSession.selectedFile) {
       pendingDraftRestore = false;
-      maybeRestoreDraftForFile(selectedFile);
+      maybeRestoreDraftForFile(currentSession.selectedFile);
     }
     pushHistorySnapshot();
   });
 
   video.addEventListener('durationchange', () => {
-    if (!videoDuration && Number.isFinite(video.duration) && video.duration > 0) {
+    if (!currentSession.videoDuration && Number.isFinite(video.duration) && video.duration > 0) {
       setEditorDuration(video.duration);
       renderTimeline();
       renderSegments();
@@ -2434,17 +2591,17 @@ function setupDragDrop() {
   });
 
   video.addEventListener('timeupdate', () => {
-    if (!videoDuration) return;
+    if (!currentSession.videoDuration) return;
     maybePauseForComment(video.currentTime);
-    if (loopSelectionEnabled) {
-      const activeCut = cutRanges.find(c => video.currentTime >= c.end - 0.03 && video.currentTime <= c.end + 0.25);
+    if (currentSession.loopSelectionEnabled) {
+      const activeCut = currentSession.cutRanges.find(c => video.currentTime >= c.end - 0.03 && video.currentTime <= c.end + 0.25);
       if (activeCut) {
         video.currentTime = activeCut.start;
         video.play().catch(() => {});
         return;
       }
     }
-    if (cutPreview && video.currentTime >= cutPreview.end) {
+    if (currentSession.cutPreview && video.currentTime >= currentSession.cutPreview.end) {
       video.pause();
       stopCutPreview();
     }
@@ -2454,25 +2611,25 @@ function setupDragDrop() {
   });
 
   video.addEventListener('seeked', () => {
-    pausedCommentIDs = new Set([...pausedCommentIDs].filter(id => {
-      const c = comments.find(x => x.id === id);
+    currentSession.pausedCommentIDs = new Set([...currentSession.pausedCommentIDs].filter(id => {
+      const c = currentSession.comments.find(x => x.id === id);
       return c && c.time < video.currentTime;
     }));
   });
 
   overlay.addEventListener('click', (e) => {
-    if (!commentCaptureMode) return;
+    if (!currentSession.commentCaptureMode) return;
     const box = getVideoContentBoxInOverlay();
     if (!box.width || !box.height) return;
     const rect = overlay.getBoundingClientRect();
     const px = e.clientX - rect.left - box.left;
     const py = e.clientY - rect.top - box.top;
-    pendingCommentPoint = {
+    currentSession.pendingCommentPoint = {
       x: clamp((px / box.width), 0, 1),
       y: clamp((py / box.height), 0, 1),
     };
     overlay.classList.remove('capture');
-    commentCaptureMode = false;
+    currentSession.commentCaptureMode = false;
     toast('Point selected. Click "Add at Current Time".', 'success');
     renderCommentDots();
   });
@@ -2483,16 +2640,16 @@ function setupDragDrop() {
 }
 
 function handleFile(file) {
-  selectedFile = file;
+  currentSession.selectedFile = file;
   activeJobID = '';
   activeJobKind = '';
   activeProgressStep = '';
   clearInterval(pollInterval);
   workflowSelected = true;
-  comments = [];
-  pendingCommentPoint = null;
-  activeCommentId = '';
-  pausedCommentIDs = new Set();
+  currentSession.comments = [];
+  currentSession.pendingCommentPoint = null;
+  currentSession.activeCommentId = '';
+  currentSession.pausedCommentIDs = new Set();
   document.getElementById('previewName').textContent = file.name;
   document.getElementById('previewMeta').textContent =
     formatBytes(file.size) + ' · ' + (file.type || 'video');
@@ -2514,7 +2671,7 @@ function handleFile(file) {
 
 function clearFile() {
   stopCutPreview();
-  selectedFile = null;
+  currentSession.selectedFile = null;
   activeJobID = '';
   activeJobKind = '';
   activeProgressStep = '';
@@ -2533,22 +2690,22 @@ function clearFile() {
   document.getElementById('segmentList').innerHTML = '';
   document.getElementById('editorSummary').innerHTML = '';
   document.getElementById('cutRemovedLabel').textContent = '· Removed 00:00.00';
-  cutRanges = [];
-  comments = [];
-  pendingCommentPoint = null;
-  activeCommentId = '';
-  pausedCommentIDs = new Set();
+  currentSession.cutRanges = [];
+  currentSession.comments = [];
+  currentSession.pendingCommentPoint = null;
+  currentSession.activeCommentId = '';
+  currentSession.pausedCommentIDs = new Set();
   pendingDraftRestore = false;
-  markStart = null;
-  markEnd = null;
-  videoDuration = 0;
+  currentSession.markStart = null;
+  currentSession.markEnd = null;
+  currentSession.videoDuration = 0;
   document.getElementById('commentText').value = '';
   renderCommentDots();
   renderComments();
   clearResultPanel();
-  if (editorObjectURL) {
-    URL.revokeObjectURL(editorObjectURL);
-    editorObjectURL = '';
+  if (currentSession.editorObjectURL) {
+    URL.revokeObjectURL(currentSession.editorObjectURL);
+    currentSession.editorObjectURL = '';
   }
   resetHistory();
   updateHistoryButtons();
@@ -2559,9 +2716,9 @@ function clearFile() {
 function initEditor(file) {
   const wrap = document.getElementById('editorWrap');
   const video = document.getElementById('editorVideo');
-  if (editorObjectURL) URL.revokeObjectURL(editorObjectURL);
-  editorObjectURL = URL.createObjectURL(file);
-  video.src = editorObjectURL;
+  if (currentSession.editorObjectURL) URL.revokeObjectURL(currentSession.editorObjectURL);
+  currentSession.editorObjectURL = URL.createObjectURL(file);
+  video.src = currentSession.editorObjectURL;
   video.playbackRate = parseFloat(document.getElementById('playbackRate').value) || 1;
   wrap.style.display = 'block';
   setEditorDuration(0);
@@ -2570,10 +2727,10 @@ function initEditor(file) {
 
 function setEditorDuration(duration) {
   const scrub = document.getElementById('timelineScrub');
-  videoDuration = (Number.isFinite(duration) && duration > 0) ? duration : 0;
-  scrub.max = videoDuration ? videoDuration.toFixed(2) : '0';
+  currentSession.videoDuration = (Number.isFinite(duration) && duration > 0) ? duration : 0;
+  scrub.max = currentSession.videoDuration ? currentSession.videoDuration.toFixed(2) : '0';
   document.getElementById('cutStart').value = '0';
-  document.getElementById('cutEnd').value = videoDuration ? videoDuration.toFixed(2) : '0';
+  document.getElementById('cutEnd').value = currentSession.videoDuration ? currentSession.videoDuration.toFixed(2) : '0';
   renderEditorSummary();
 }
 
@@ -2584,7 +2741,7 @@ async function probeVideoDuration(file) {
     const r = await apiFetch(API + '/probe', { method: 'POST', body: form });
     if (!r.ok) return;
     const info = await r.json();
-    if (!videoDuration && info && Number.isFinite(info.duration) && info.duration > 0) {
+    if (!currentSession.videoDuration && info && Number.isFinite(info.duration) && info.duration > 0) {
       setEditorDuration(info.duration);
       renderTimeline();
       renderSegments();
@@ -2595,9 +2752,9 @@ async function probeVideoDuration(file) {
 
 function toggleCommentCapture() {
   const overlay = document.getElementById('videoOverlay');
-  commentCaptureMode = !commentCaptureMode;
-  overlay.classList.toggle('capture', commentCaptureMode);
-  toast(commentCaptureMode ? 'Click on video to place note point' : 'Point selection cancelled', 'success');
+  currentSession.commentCaptureMode = !currentSession.commentCaptureMode;
+  overlay.classList.toggle('capture', currentSession.commentCaptureMode);
+  toast(currentSession.commentCaptureMode ? 'Click on video to place note point' : 'Point selection cancelled', 'success');
 }
 
 function addCommentAtCurrent() {
@@ -2612,8 +2769,8 @@ function addCommentAtCurrent() {
     toast('Video is not ready', 'error');
     return;
   }
-  const point = pendingCommentPoint || { x: 0.5, y: 0.5 };
-  comments.push({
+  const point = currentSession.pendingCommentPoint || { x: 0.5, y: 0.5 };
+  currentSession.comments.push({
     id: randomID(),
     time: Number(video.currentTime.toFixed(3)),
     x: Number(point.x.toFixed(4)),
@@ -2623,10 +2780,10 @@ function addCommentAtCurrent() {
     author,
     created_at: new Date().toISOString(),
   });
-  comments.sort((a, b) => a.time - b.time);
-  pendingCommentPoint = null;
+  currentSession.comments.sort((a, b) => a.time - b.time);
+  currentSession.pendingCommentPoint = null;
   document.getElementById('commentText').value = '';
-  pausedCommentIDs = new Set();
+  currentSession.pausedCommentIDs = new Set();
   renderComments();
   renderCommentDots();
   renderEditorSummary();
@@ -2637,7 +2794,7 @@ function addCommentAtCurrent() {
 function updateActiveComment() {
   const text = (document.getElementById('commentText').value || '').trim();
   const author = (document.getElementById('commentAuthor').value || document.getElementById('shareAuthor').value || '').trim();
-  if (!activeCommentId) {
+  if (!currentSession.activeCommentId) {
     toast('Select a comment to update', 'error');
     return;
   }
@@ -2645,7 +2802,7 @@ function updateActiveComment() {
     toast('Enter updated comment text first', 'error');
     return;
   }
-  const target = comments.find(c => c.id === activeCommentId);
+  const target = currentSession.comments.find(c => c.id === currentSession.activeCommentId);
   if (!target) return;
   target.text = text;
   target.author = author;
@@ -2657,12 +2814,12 @@ function updateActiveComment() {
 }
 
 function toggleCommentResolved(id) {
-  const commentID = id || activeCommentId;
+  const commentID = id || currentSession.activeCommentId;
   if (!commentID) {
     toast('Select a comment first', 'error');
     return;
   }
-  const target = comments.find(c => c.id === commentID);
+  const target = currentSession.comments.find(c => c.id === commentID);
   if (!target) return;
   target.status = target.status === 'resolved' ? 'open' : 'resolved';
   renderComments();
@@ -2673,17 +2830,17 @@ function toggleCommentResolved(id) {
 }
 
 function deleteActiveComment(id) {
-  const commentID = id || activeCommentId;
+  const commentID = id || currentSession.activeCommentId;
   if (!commentID) {
     toast('Select a comment first', 'error');
     return;
   }
-  comments = comments.filter(c => c.id !== commentID);
-  if (activeCommentId === commentID) {
-    activeCommentId = '';
+  currentSession.comments = currentSession.comments.filter(c => c.id !== commentID);
+  if (currentSession.activeCommentId === commentID) {
+    currentSession.activeCommentId = '';
     document.getElementById('commentText').value = '';
   }
-  pausedCommentIDs.delete(commentID);
+  currentSession.pausedCommentIDs.delete(commentID);
   renderComments();
   renderCommentDots();
   renderEditorSummary();
@@ -2692,9 +2849,9 @@ function deleteActiveComment(id) {
 }
 
 function clearComments() {
-  comments = [];
-  activeCommentId = '';
-  pausedCommentIDs = new Set();
+  currentSession.comments = [];
+  currentSession.activeCommentId = '';
+  currentSession.pausedCommentIDs = new Set();
   document.getElementById('commentText').value = '';
   renderComments();
   renderCommentDots();
@@ -2706,15 +2863,15 @@ function clearComments() {
 function renderComments() {
   const list = document.getElementById('commentList');
   const summary = document.getElementById('commentSummary');
-  const openCount = comments.filter(c => c.status !== 'resolved').length;
-  const resolvedCount = comments.length - openCount;
-  summary.textContent = comments.length + ' notes · ' + openCount + ' open · ' + resolvedCount + ' resolved';
-  if (!comments.length) {
+  const openCount = currentSession.comments.filter(c => c.status !== 'resolved').length;
+  const resolvedCount = currentSession.comments.length - openCount;
+  summary.textContent = currentSession.comments.length + ' notes · ' + openCount + ' open · ' + resolvedCount + ' resolved';
+  if (!currentSession.comments.length) {
     list.innerHTML = '<div class="segment-empty">No notes yet.</div>';
     return;
   }
-  list.innerHTML = comments.map(c =>
-    '<div class="comment-item' + (c.id === activeCommentId ? ' active' : '') + (c.status === 'resolved' ? ' resolved' : '') + '" onclick="jumpToComment(\'' + c.id + '\')">' +
+  list.innerHTML = currentSession.comments.map(c =>
+    '<div class="comment-item' + (c.id === currentSession.activeCommentId ? ' active' : '') + (c.status === 'resolved' ? ' resolved' : '') + '" onclick="jumpToComment(\'' + c.id + '\')">' +
       '<div class="comment-row">' +
         '<div class="comment-main">' +
           '<div>' + formatTime(c.time) + '</div>' +
@@ -2736,15 +2893,15 @@ function renderCommentDots() {
   const overlay = document.getElementById('videoOverlay');
   if (!overlay) return;
   const box = getVideoContentBoxInOverlay();
-  const points = comments.map(c => {
+  const points = currentSession.comments.map(c => {
     const leftPct = ((box.left + (c.x * box.width)) / box.overlayWidth) * 100;
     const topPct = ((box.top + (c.y * box.height)) / box.overlayHeight) * 100;
-    return '<span class="comment-dot' + (c.id === activeCommentId ? ' active' : '') + (c.status === 'resolved' ? ' resolved' : '') + '" style="left:' + leftPct + '%;top:' + topPct + '%"></span>';
+    return '<span class="comment-dot' + (c.id === currentSession.activeCommentId ? ' active' : '') + (c.status === 'resolved' ? ' resolved' : '') + '" style="left:' + leftPct + '%;top:' + topPct + '%"></span>';
   }).join('');
   let pending = '';
-  if (pendingCommentPoint) {
-    const leftPct = ((box.left + (pendingCommentPoint.x * box.width)) / box.overlayWidth) * 100;
-    const topPct = ((box.top + (pendingCommentPoint.y * box.height)) / box.overlayHeight) * 100;
+  if (currentSession.pendingCommentPoint) {
+    const leftPct = ((box.left + (currentSession.pendingCommentPoint.x * box.width)) / box.overlayWidth) * 100;
+    const topPct = ((box.top + (currentSession.pendingCommentPoint.y * box.height)) / box.overlayHeight) * 100;
     pending = '<span class="comment-dot active" style="left:' + leftPct + '%;top:' + topPct + '%"></span>';
   }
   overlay.innerHTML = points + pending;
@@ -2766,11 +2923,11 @@ function getVideoContentBoxInOverlay() {
 }
 
 function jumpToComment(id) {
-  const c = comments.find(x => x.id === id);
+  const c = currentSession.comments.find(x => x.id === id);
   const video = document.getElementById('editorVideo');
   if (!c || !video) return;
   video.currentTime = c.time;
-  activeCommentId = c.id;
+  currentSession.activeCommentId = c.id;
   document.getElementById('commentText').value = c.text || '';
   document.getElementById('commentAuthor').value = c.author || '';
   renderComments();
@@ -2780,12 +2937,12 @@ function jumpToComment(id) {
 function maybePauseForComment(currentTime) {
   const video = document.getElementById('editorVideo');
   if (!video || video.paused) return;
-  for (const c of comments) {
+  for (const c of currentSession.comments) {
     if (c.status === 'resolved') continue;
-    if (pausedCommentIDs.has(c.id)) continue;
+    if (currentSession.pausedCommentIDs.has(c.id)) continue;
     if (currentTime >= c.time && currentTime <= c.time + 0.25) {
-      pausedCommentIDs.add(c.id);
-      activeCommentId = c.id;
+      currentSession.pausedCommentIDs.add(c.id);
+      currentSession.activeCommentId = c.id;
       renderComments();
       renderCommentDots();
       video.pause();
@@ -2799,7 +2956,7 @@ function maybePauseForComment(currentTime) {
 }
 
 async function createShareLink() {
-  if (!selectedFile) {
+  if (!currentSession.selectedFile) {
     toast('Select or record a video first', 'error');
     return;
   }
@@ -2807,13 +2964,13 @@ async function createShareLink() {
   btn.disabled = true;
   btn.textContent = 'Creating...';
   const form = new FormData();
-  form.append('video', selectedFile, selectedFile.name || 'recording.webm');
-  form.append('cut_ranges', JSON.stringify(cutRanges));
-  form.append('comments', JSON.stringify(comments));
+  form.append('video', currentSession.selectedFile, currentSession.selectedFile.name || 'recording.webm');
+  form.append('cut_ranges', JSON.stringify(currentSession.cutRanges));
+  form.append('comments', JSON.stringify(currentSession.comments));
   form.append('created_by', (document.getElementById('shareAuthor').value || '').trim());
   form.append('expires_in_hours', document.getElementById('shareExpiryHours').value || '168');
-  if (videoDuration > 0) {
-    form.append('duration_hint', String(Number(videoDuration.toFixed(3))));
+  if (currentSession.videoDuration > 0) {
+    form.append('duration_hint', String(Number(currentSession.videoDuration.toFixed(3))));
   }
   try {
     const r = await apiFetch(API + '/share', { method: 'POST', body: form });
@@ -2867,7 +3024,7 @@ function ensurePlayableDuration(video) {
   if (Number.isFinite(video.duration) && video.duration > 0) return;
   const onSeeked = () => {
     if (Number.isFinite(video.duration) && video.duration > 0) {
-      if (!videoDuration) {
+      if (!currentSession.videoDuration) {
         setEditorDuration(video.duration);
         renderTimeline();
         renderSegments();
@@ -2886,22 +3043,22 @@ function ensurePlayableDuration(video) {
 
 function markCutStart() {
   const video = document.getElementById('editorVideo');
-  markStart = (video && Number.isFinite(video.currentTime)) ? video.currentTime : 0;
-  document.getElementById('cutStart').value = markStart.toFixed(2);
+  currentSession.markStart = (video && Number.isFinite(video.currentTime)) ? video.currentTime : 0;
+  document.getElementById('cutStart').value = currentSession.markStart.toFixed(2);
 }
 
 function markCutEnd() {
   const video = document.getElementById('editorVideo');
-  markEnd = (video && Number.isFinite(video.currentTime)) ? video.currentTime : 0;
-  document.getElementById('cutEnd').value = markEnd.toFixed(2);
+  currentSession.markEnd = (video && Number.isFinite(video.currentTime)) ? video.currentTime : 0;
+  document.getElementById('cutEnd').value = currentSession.markEnd.toFixed(2);
 }
 
 function cutMarkedRange() {
-  if (markStart === null || markEnd === null) {
+  if (currentSession.markStart === null || currentSession.markEnd === null) {
     toast('Mark both cut start and cut end first', 'error');
     return;
   }
-  addCutRange(markStart, markEnd);
+  addCutRange(currentSession.markStart, currentSession.markEnd);
 }
 
 function addCutFromInputs() {
@@ -2912,7 +3069,7 @@ function addCutFromInputs() {
 
 function addCutRange(start, end) {
   stopCutPreview();
-  if (!videoDuration) {
+  if (!currentSession.videoDuration) {
     toast('Video duration is not ready yet. Wait for preview/probe to finish.', 'error');
     return;
   }
@@ -2921,14 +3078,14 @@ function addCutRange(start, end) {
     return;
   }
   let s = Math.max(0, Math.min(start, end));
-  let e = Math.min(videoDuration, Math.max(start, end));
+  let e = Math.min(currentSession.videoDuration, Math.max(start, end));
   if (e - s < 0.05) {
     toast('Cut range too small', 'error');
     return;
   }
 
-  cutRanges.push({ start: s, end: e });
-  cutRanges = mergeRanges(cutRanges);
+  currentSession.cutRanges.push({ start: s, end: e });
+  currentSession.cutRanges = mergeRanges(currentSession.cutRanges);
   syncCutBounds();
   document.getElementById('cutStart').value = s.toFixed(2);
   document.getElementById('cutEnd').value = e.toFixed(2);
@@ -2941,7 +3098,7 @@ function addCutRange(start, end) {
 
 function resetCuts() {
   stopCutPreview();
-  cutRanges = [];
+  currentSession.cutRanges = [];
   renderTimeline();
   renderSegments();
   renderEditorSummary();
@@ -2950,10 +3107,10 @@ function resetCuts() {
 }
 
 function removeCut(index) {
-  if (index < 0 || index >= cutRanges.length) return;
+  if (index < 0 || index >= currentSession.cutRanges.length) return;
   stopCutPreview();
-  cutRanges.splice(index, 1);
-  cutRanges = mergeRanges(cutRanges);
+  currentSession.cutRanges.splice(index, 1);
+  currentSession.cutRanges = mergeRanges(currentSession.cutRanges);
   renderTimeline();
   renderSegments();
   renderEditorSummary();
@@ -2962,7 +3119,7 @@ function removeCut(index) {
 }
 
 function applyCutRow(index) {
-  if (index < 0 || index >= cutRanges.length) return;
+  if (index < 0 || index >= currentSession.cutRanges.length) return;
   const s = parseFloat(document.getElementById('cutRowStart_' + index).value);
   const e = parseFloat(document.getElementById('cutRowEnd_' + index).value);
   if (!Number.isFinite(s) || !Number.isFinite(e)) {
@@ -2970,13 +3127,13 @@ function applyCutRow(index) {
     return;
   }
   const start = Math.max(0, Math.min(s, e));
-  const end = Math.min(videoDuration, Math.max(s, e));
+  const end = Math.min(currentSession.videoDuration, Math.max(s, e));
   if (end-start < 0.05) {
     toast('Cut range too small', 'error');
     return;
   }
-  cutRanges[index] = { start, end };
-  cutRanges = mergeRanges(cutRanges);
+  currentSession.cutRanges[index] = { start, end };
+  currentSession.cutRanges = mergeRanges(currentSession.cutRanges);
   syncCutBounds();
   renderTimeline();
   renderSegments();
@@ -2986,24 +3143,24 @@ function applyCutRow(index) {
 }
 
 function resetCutRow(index) {
-  if (index < 0 || index >= cutRanges.length) return;
-  document.getElementById('cutRowStart_' + index).value = cutRanges[index].start.toFixed(2);
-  document.getElementById('cutRowEnd_' + index).value = cutRanges[index].end.toFixed(2);
+  if (index < 0 || index >= currentSession.cutRanges.length) return;
+  document.getElementById('cutRowStart_' + index).value = currentSession.cutRanges[index].start.toFixed(2);
+  document.getElementById('cutRowEnd_' + index).value = currentSession.cutRanges[index].end.toFixed(2);
 }
 
 function playCut(index) {
-  if (index < 0 || index >= cutRanges.length) return;
+  if (index < 0 || index >= currentSession.cutRanges.length) return;
   const video = document.getElementById('editorVideo');
   if (!video) return;
   stopCutPreview();
-  const cut = cutRanges[index];
-  cutPreview = { index, end: cut.end };
+  const cut = currentSession.cutRanges[index];
+  currentSession.cutPreview = { index, end: cut.end };
   video.currentTime = cut.start;
   video.play().catch(() => {});
 }
 
 function stopCutPreview() {
-  cutPreview = null;
+  currentSession.cutPreview = null;
 }
 
 function mergeRanges(ranges) {
@@ -3025,9 +3182,9 @@ function mergeRanges(ranges) {
 }
 
 function getKeepSegments() {
-  if (!videoDuration) return [];
-  const cuts = mergeRanges(cutRanges);
-  if (!cuts.length) return [{ start: 0, end: videoDuration }];
+  if (!currentSession.videoDuration) return [];
+  const cuts = mergeRanges(currentSession.cutRanges);
+  if (!cuts.length) return [{ start: 0, end: currentSession.videoDuration }];
 
   const keep = [];
   let cursor = 0;
@@ -3035,7 +3192,7 @@ function getKeepSegments() {
     if (cut.start > cursor) keep.push({ start: cursor, end: cut.start });
     cursor = Math.max(cursor, cut.end);
   }
-  if (cursor < videoDuration) keep.push({ start: cursor, end: videoDuration });
+  if (cursor < currentSession.videoDuration) keep.push({ start: cursor, end: currentSession.videoDuration });
   return keep.filter(s => (s.end - s.start) >= 0.05).map(s => ({
     start: Number(s.start.toFixed(3)),
     end: Number(s.end.toFixed(3)),
@@ -3047,22 +3204,22 @@ function renderTimeline() {
   const playhead = document.getElementById('timelinePlayhead');
   if (!track || !playhead) return;
   track.querySelectorAll('.timeline-seg,.timeline-cut').forEach(n => n.remove());
-  if (!videoDuration) return;
+  if (!currentSession.videoDuration) return;
 
   const keeps = getKeepSegments();
   keeps.forEach(seg => {
     const node = document.createElement('div');
     node.className = 'timeline-seg';
-    node.style.left = ((seg.start / videoDuration) * 100) + '%';
-    node.style.width = (((seg.end - seg.start) / videoDuration) * 100) + '%';
+    node.style.left = ((seg.start / currentSession.videoDuration) * 100) + '%';
+    node.style.width = (((seg.end - seg.start) / currentSession.videoDuration) * 100) + '%';
     track.appendChild(node);
   });
 
-  cutRanges.forEach((cut, idx) => {
+  currentSession.cutRanges.forEach((cut, idx) => {
     const node = document.createElement('div');
     node.className = 'timeline-cut';
-    node.style.left = ((cut.start / videoDuration) * 100) + '%';
-    node.style.width = (((cut.end - cut.start) / videoDuration) * 100) + '%';
+    node.style.left = ((cut.start / currentSession.videoDuration) * 100) + '%';
+    node.style.width = (((cut.end - cut.start) / currentSession.videoDuration) * 100) + '%';
 
     const left = document.createElement('div');
     left.className = 'timeline-handle left';
@@ -3088,16 +3245,16 @@ function renderTimeline() {
 
 function renderSegments() {
   const list = document.getElementById('segmentList');
-  if (!videoDuration) {
+  if (!currentSession.videoDuration) {
     list.innerHTML = '';
     return;
   }
-  if (!cutRanges.length) {
+  if (!currentSession.cutRanges.length) {
     list.innerHTML = '<span class="segment-empty">No cuts yet. Add as many cut ranges as you need.</span>';
     return;
   }
 
-  list.innerHTML = cutRanges.map((s, idx) =>
+  list.innerHTML = currentSession.cutRanges.map((s, idx) =>
     '<div class="segment-row">' +
       '<span class="segment-row-id">#' + (idx + 1) + '</span>' +
       '<input class="segment-input" id="cutRowStart_' + idx + '" type="number" min="0" step="0.01" value="' + s.start.toFixed(2) + '">' +
@@ -3112,35 +3269,35 @@ function renderSegments() {
 }
 
 function startCutDrag(event, index, edge) {
-  if (!videoDuration || index < 0 || index >= cutRanges.length) return;
+  if (!currentSession.videoDuration || index < 0 || index >= currentSession.cutRanges.length) return;
   event.preventDefault();
   stopCutPreview();
-  dragState = {
+  currentSession.dragState = {
     index,
     edge,
     startX: event.clientX,
-    start: cutRanges[index].start,
-    end: cutRanges[index].end,
+    start: currentSession.cutRanges[index].start,
+    end: currentSession.cutRanges[index].end,
   };
 }
 
 function handleCutDrag(event) {
-  if (!dragState || !videoDuration) return;
+  if (!currentSession.dragState || !currentSession.videoDuration) return;
   const track = document.getElementById('timelineTrack');
   if (!track) return;
   const width = track.clientWidth || 1;
-  const deltaSec = ((event.clientX - dragState.startX) / width) * videoDuration;
-  const idx = dragState.index;
-  const prevEnd = idx > 0 ? cutRanges[idx - 1].end : 0;
-  const nextStart = idx < cutRanges.length - 1 ? cutRanges[idx + 1].start : videoDuration;
+  const deltaSec = ((event.clientX - currentSession.dragState.startX) / width) * currentSession.videoDuration;
+  const idx = currentSession.dragState.index;
+  const prevEnd = idx > 0 ? currentSession.cutRanges[idx - 1].end : 0;
+  const nextStart = idx < currentSession.cutRanges.length - 1 ? currentSession.cutRanges[idx + 1].start : currentSession.videoDuration;
   const minDur = 0.05;
 
-  if (dragState.edge === 'left') {
-    const maxStart = Math.min(dragState.end - minDur, nextStart - minDur);
-    cutRanges[idx].start = clamp(dragState.start + deltaSec, prevEnd, maxStart);
+  if (currentSession.dragState.edge === 'left') {
+    const maxStart = Math.min(currentSession.dragState.end - minDur, nextStart - minDur);
+    currentSession.cutRanges[idx].start = clamp(currentSession.dragState.start + deltaSec, prevEnd, maxStart);
   } else {
-    const minEnd = Math.max(dragState.start + minDur, prevEnd + minDur);
-    cutRanges[idx].end = clamp(dragState.end + deltaSec, minEnd, nextStart);
+    const minEnd = Math.max(currentSession.dragState.start + minDur, prevEnd + minDur);
+    currentSession.cutRanges[idx].end = clamp(currentSession.dragState.end + deltaSec, minEnd, nextStart);
   }
   syncCutBounds();
   renderTimeline();
@@ -3148,9 +3305,9 @@ function handleCutDrag(event) {
 }
 
 function endCutDrag() {
-  if (!dragState) return;
-  dragState = null;
-  cutRanges = mergeRanges(cutRanges);
+  if (!currentSession.dragState) return;
+  currentSession.dragState = null;
+  currentSession.cutRanges = mergeRanges(currentSession.cutRanges);
   syncCutBounds();
   renderTimeline();
   renderSegments();
@@ -3160,29 +3317,29 @@ function endCutDrag() {
 }
 
 function syncCutBounds() {
-  for (let i = 0; i < cutRanges.length; i++) {
-    cutRanges[i].start = Number(clamp(cutRanges[i].start, 0, videoDuration).toFixed(3));
-    cutRanges[i].end = Number(clamp(cutRanges[i].end, 0, videoDuration).toFixed(3));
+  for (let i = 0; i < currentSession.cutRanges.length; i++) {
+    currentSession.cutRanges[i].start = Number(clamp(currentSession.cutRanges[i].start, 0, currentSession.videoDuration).toFixed(3));
+    currentSession.cutRanges[i].end = Number(clamp(currentSession.cutRanges[i].end, 0, currentSession.videoDuration).toFixed(3));
   }
 }
 
 function updatePlayhead() {
   const video = document.getElementById('editorVideo');
   const playhead = document.getElementById('timelinePlayhead');
-  if (!video || !playhead || !videoDuration) return;
-  const pct = Math.max(0, Math.min(100, (video.currentTime / videoDuration) * 100));
+  if (!video || !playhead || !currentSession.videoDuration) return;
+  const pct = Math.max(0, Math.min(100, (video.currentTime / currentSession.videoDuration) * 100));
   playhead.style.left = 'calc(' + pct + '% - 1px)';
 }
 
 function updateEditorHUD(time) {
-  document.getElementById('editorNow').textContent = formatTime(time) + ' / ' + formatTime(videoDuration);
+  document.getElementById('editorNow').textContent = formatTime(time) + ' / ' + formatTime(currentSession.videoDuration);
   updatePlayhead();
 }
 
 function seekRelative(delta) {
   const video = document.getElementById('editorVideo');
-  if (!video || !videoDuration) return;
-  video.currentTime = clamp((video.currentTime || 0) + delta, 0, videoDuration);
+  if (!video || !currentSession.videoDuration) return;
+  video.currentTime = clamp((video.currentTime || 0) + delta, 0, currentSession.videoDuration);
   updateEditorHUD(video.currentTime || 0);
 }
 
@@ -3193,34 +3350,34 @@ function setPlaybackRate(value) {
 }
 
 function toggleLoopSelection() {
-  loopSelectionEnabled = !loopSelectionEnabled;
-  document.getElementById('loopToggleBtn').textContent = loopSelectionEnabled ? 'Loop Cuts On' : 'Loop Cuts Off';
+  currentSession.loopSelectionEnabled = !currentSession.loopSelectionEnabled;
+  document.getElementById('loopToggleBtn').textContent = currentSession.loopSelectionEnabled ? 'Loop Cuts On' : 'Loop Cuts Off';
 }
 
 function renderEditorSummary() {
   const el = document.getElementById('editorSummary');
   if (!el) return;
   const removedDuration = getTotalRemovedDuration();
-  const keptDuration = Math.max(0, videoDuration - removedDuration);
-  const openNotes = comments.filter(c => c.status !== 'resolved').length;
+  const keptDuration = Math.max(0, currentSession.videoDuration - removedDuration);
+  const openNotes = currentSession.comments.filter(c => c.status !== 'resolved').length;
   const removedLabel = document.getElementById('cutRemovedLabel');
   if (removedLabel) {
     removedLabel.textContent = '· Removed ' + formatTime(removedDuration);
   }
   el.innerHTML = [
-    '<span class="summary-pill">Duration ' + formatTime(videoDuration) + '</span>',
+    '<span class="summary-pill">Duration ' + formatTime(currentSession.videoDuration) + '</span>',
     '<span class="summary-pill">Removed ' + formatTime(removedDuration) + '</span>',
     '<span class="summary-pill">Kept ' + formatTime(keptDuration) + '</span>',
-    '<span class="summary-pill">Cuts ' + cutRanges.length + '</span>',
+    '<span class="summary-pill">Cuts ' + currentSession.cutRanges.length + '</span>',
     '<span class="summary-pill">Open Notes ' + openNotes + '</span>',
-    '<span class="summary-pill">Resolved ' + (comments.length - openNotes) + '</span>',
+    '<span class="summary-pill">Resolved ' + (currentSession.comments.length - openNotes) + '</span>',
   ].join('');
 }
 
 function captureEditorState() {
   return {
-    cutRanges: cutRanges.map(c => ({ start: c.start, end: c.end })),
-    comments: comments.map(c => ({
+    cutRanges: currentSession.cutRanges.map(c => ({ start: c.start, end: c.end })),
+    comments: currentSession.comments.map(c => ({
       id: c.id,
       time: c.time,
       x: c.x,
@@ -3230,14 +3387,14 @@ function captureEditorState() {
       author: c.author || '',
       created_at: c.created_at || '',
     })),
-    markStart,
-    markEnd,
-    activeCommentId,
+    markStart: currentSession.markStart,
+    markEnd: currentSession.markEnd,
+    activeCommentId: currentSession.activeCommentId,
   };
 }
 
 function getNormalizedCutPayload() {
-  return mergeRanges(cutRanges).map(s => ({
+  return mergeRanges(currentSession.cutRanges).map(s => ({
     start: Number(s.start.toFixed(3)),
     end: Number(s.end.toFixed(3)),
   }));
@@ -3248,9 +3405,9 @@ function getTotalRemovedDuration() {
 }
 
 function applyEditorState(state) {
-  suppressHistory = true;
-  cutRanges = (state.cutRanges || []).map(c => ({ start: c.start || 0, end: c.end || 0 }));
-	comments = (state.comments || []).map(c => ({
+  currentSession.suppressHistory = true;
+  currentSession.cutRanges = (state.cutRanges || []).map(c => ({ start: c.start || 0, end: c.end || 0 }));
+	currentSession.comments = (state.comments || []).map(c => ({
 		id: c.id || randomID(),
 		time: c.time || 0,
 		x: c.x || 0.5,
@@ -3260,13 +3417,13 @@ function applyEditorState(state) {
 		author: c.author || '',
 		created_at: c.created_at || '',
 	}));
-  markStart = Number.isFinite(state.markStart) ? state.markStart : null;
-  markEnd = Number.isFinite(state.markEnd) ? state.markEnd : null;
-  activeCommentId = state.activeCommentId || '';
+  currentSession.markStart = Number.isFinite(state.markStart) ? state.markStart : null;
+  currentSession.markEnd = Number.isFinite(state.markEnd) ? state.markEnd : null;
+  currentSession.activeCommentId = state.activeCommentId || '';
   syncCutBounds();
-  pausedCommentIDs = new Set();
-  if (activeCommentId) {
-    const selected = comments.find(c => c.id === activeCommentId);
+  currentSession.pausedCommentIDs = new Set();
+  if (currentSession.activeCommentId) {
+    const selected = currentSession.comments.find(c => c.id === currentSession.activeCommentId);
     document.getElementById('commentText').value = selected ? selected.text : '';
   } else {
     document.getElementById('commentText').value = '';
@@ -3276,49 +3433,49 @@ function applyEditorState(state) {
   renderComments();
   renderCommentDots();
   renderEditorSummary();
-  suppressHistory = false;
+  currentSession.suppressHistory = false;
 }
 
 function pushHistorySnapshot() {
-  if (suppressHistory || !selectedFile) {
+  if (currentSession.suppressHistory || !currentSession.selectedFile) {
     updateHistoryButtons();
     return;
   }
   const next = captureEditorState();
-  const prev = historyStack[historyStack.length - 1];
+  const prev = currentSession.historyStack[currentSession.historyStack.length - 1];
   if (prev && JSON.stringify(prev) === JSON.stringify(next)) {
     updateHistoryButtons();
     return;
   }
-  historyStack.push(next);
-  if (historyStack.length > 80) historyStack.shift();
-  redoStack = [];
+  currentSession.historyStack.push(next);
+  if (currentSession.historyStack.length > 80) currentSession.historyStack.shift();
+  currentSession.redoStack = [];
   updateHistoryButtons();
 }
 
 function resetHistory() {
-  historyStack = [];
-  redoStack = [];
+  currentSession.historyStack = [];
+  currentSession.redoStack = [];
 }
 
 function updateHistoryButtons() {
-  document.getElementById('undoBtn').disabled = historyStack.length < 2;
-  document.getElementById('redoBtn').disabled = redoStack.length === 0;
+  document.getElementById('undoBtn').disabled = currentSession.historyStack.length < 2;
+  document.getElementById('redoBtn').disabled = currentSession.redoStack.length === 0;
 }
 
 function undoHistory() {
-  if (historyStack.length < 2) return;
-  const current = historyStack.pop();
-  redoStack.push(current);
-  applyEditorState(historyStack[historyStack.length - 1]);
+  if (currentSession.historyStack.length < 2) return;
+  const current = currentSession.historyStack.pop();
+  currentSession.redoStack.push(current);
+  applyEditorState(currentSession.historyStack[currentSession.historyStack.length - 1]);
   updateHistoryButtons();
   queueDraftSave();
 }
 
 function redoHistory() {
-  if (!redoStack.length) return;
-  const next = redoStack.pop();
-  historyStack.push(next);
+  if (!currentSession.redoStack.length) return;
+  const next = currentSession.redoStack.pop();
+  currentSession.historyStack.push(next);
   applyEditorState(next);
   updateHistoryButtons();
   queueDraftSave();
@@ -3336,7 +3493,7 @@ function loadDraftCache() {
 }
 
 function getSelectedFileSignature(file) {
-  const target = file || selectedFile;
+  const target = file || currentSession.selectedFile;
   if (!target) return '';
   return [target.name || '', target.size || 0, target.type || '', target.lastModified || 0].join('::');
 }
@@ -3412,16 +3569,16 @@ function queueDraftSave() {
 
 function saveDraft() {
   if (!draftCacheLoaded) return;
-  const base = (!selectedFile && draftCache) ? draftCache : {};
+  const base = (!currentSession.selectedFile && draftCache) ? draftCache : {};
   draftCache = {
     ...base,
     saved_at: new Date().toISOString(),
     active_tab: activeTab,
-    file_signature: selectedFile ? getSelectedFileSignature() : (base.file_signature || ''),
-    file_name: selectedFile ? selectedFile.name : (base.file_name || ''),
-    video_duration: selectedFile ? Number(videoDuration.toFixed ? videoDuration.toFixed(3) : 0) : (base.video_duration || 0),
+    file_signature: currentSession.selectedFile ? getSelectedFileSignature() : (base.file_signature || ''),
+    file_name: currentSession.selectedFile ? currentSession.selectedFile.name : (base.file_name || ''),
+    video_duration: currentSession.selectedFile ? Number(currentSession.videoDuration.toFixed ? currentSession.videoDuration.toFixed(3) : 0) : (base.video_duration || 0),
     settings: captureSettingsState(),
-    editor: selectedFile ? captureEditorState() : (base.editor || captureEditorState()),
+    editor: currentSession.selectedFile ? captureEditorState() : (base.editor || captureEditorState()),
     share_link: document.getElementById('shareLink').value || '',
   };
   try {
@@ -3453,15 +3610,15 @@ function maybeRestoreDraftForFile(file) {
 }
 
 function restoreDraftToCurrentFile() {
-  if (!selectedFile) {
+  if (!currentSession.selectedFile) {
     toast('Open the matching file first', 'error');
     return;
   }
-  if (!hasRestorableDraftForFile(selectedFile)) {
+  if (!hasRestorableDraftForFile(currentSession.selectedFile)) {
     toast('No matching draft for this file', 'error');
     return;
   }
-  maybeRestoreDraftForFile(selectedFile);
+  maybeRestoreDraftForFile(currentSession.selectedFile);
   pushHistorySnapshot();
 }
 
@@ -3484,8 +3641,8 @@ function updateDraftStatus() {
     return;
   }
   const savedAt = draftCache.saved_at ? new Date(draftCache.saved_at).toLocaleString() : 'unknown time';
-  if (selectedFile && hasRestorableDraftForFile(selectedFile)) {
-    status.textContent = 'Draft found for "' + (draftCache.file_name || selectedFile.name) + '" from ' + savedAt + '. Restore or continue editing.';
+  if (currentSession.selectedFile && hasRestorableDraftForFile(currentSession.selectedFile)) {
+    status.textContent = 'Draft found for "' + (draftCache.file_name || currentSession.selectedFile.name) + '" from ' + savedAt + '. Restore or continue editing.';
     restoreBtn.disabled = false;
     return;
   }
@@ -3515,7 +3672,7 @@ function setupKeyboardShortcuts() {
       return;
     }
 
-    if (isTyping || !selectedFile) return;
+    if (isTyping || !currentSession.selectedFile) return;
 
     if (event.code === 'Space') {
       event.preventDefault();
@@ -3546,74 +3703,283 @@ function setupKeyboardShortcuts() {
 }
 
 function buildNotesReport() {
-  const title = selectedFile ? selectedFile.name : 'screen-session';
+  const title = currentSession.selectedFile ? currentSession.selectedFile.name : 'screen-session';
   const lines = ['Review Notes: ' + title];
-  if (!comments.length) {
+  if (!currentSession.comments.length) {
     lines.push('No notes recorded.');
     return lines.join('\n');
   }
-  comments.forEach((c, index) => {
+  currentSession.comments.forEach((c, index) => {
     const author = c.author ? ' @' + c.author : '';
     lines.push((index + 1) + '. [' + (c.status === 'resolved' ? 'resolved' : 'open') + '] ' + formatTime(c.time) + author + ' - ' + c.text);
   });
   return lines.join('\n');
 }
 
+// ── Task Card Queue ───────────────────────────────────────────────────────
+function createTaskCard(fileName, jobKind) {
+  return {
+    id: Math.random().toString(36).slice(2, 10),
+    jobId: null,
+    jobKind: jobKind,
+    fileName: fileName,
+    status: 'uploading',
+    progress: 0,
+    stage: 'Uploading',
+    detail: '',
+    stagePct: 0,
+    pollTimer: null,
+    createdAt: new Date(),
+    completedAt: null,
+    error: null,
+    downloadUrl: null,
+    viewUrl: null,
+    downloadName: null,
+  };
+}
+
+function renderTaskCards() {
+  const container = document.getElementById('taskCardList');
+  const card = document.getElementById('taskQueueCard');
+  const countEl = document.getElementById('taskQueueCount');
+  if (!container || !card) return;
+
+  if (!taskCards.length) {
+    card.style.display = 'none';
+    return;
+  }
+
+  card.style.display = 'block';
+  countEl.textContent = taskCards.length;
+
+  container.innerHTML = taskCards.map(tc => {
+    const isComplete = tc.status === 'done';
+    const isFailed = tc.status === 'failed';
+    const isActive = tc.status === 'uploading' || tc.status === 'queued' || tc.status === 'processing';
+
+    let actionsHTML = '';
+    if (isComplete && tc.downloadUrl) {
+      actionsHTML = '<div class="task-card-actions">' +
+        '<a class="task-card-download" href="' + tc.downloadUrl + '">Download</a>' +
+        '<a class="task-card-view" href="' + tc.viewUrl + '" target="_blank">Open</a>' +
+        '</div>';
+    }
+
+    let errorHTML = '';
+    if (isFailed && tc.error) {
+      errorHTML = '<div class="task-card-error">' + escHtml(tc.error) + '</div>';
+    }
+
+    const kindLabel = tc.jobKind === 'video' ? 'MP4' : 'GIF';
+    const metaParts = [kindLabel];
+    if (tc.stage) metaParts.push(tc.stage);
+    if (isActive && tc.stagePct > 0) metaParts.push(tc.stagePct + '%');
+    if (isComplete) metaParts.push('done');
+    if (tc.detail && isActive) metaParts.push(tc.detail);
+
+    const dotStatus = {uploading:'running', queued:'queued', processing:'running', done:'done', failed:'failed'}[tc.status] || 'queued';
+
+    return '<div class="task-card task-card--' + tc.status + '">' +
+      '<div class="task-card-header">' +
+        '<div class="task-card-dot status-' + dotStatus + '"></div>' +
+        '<div class="task-card-info">' +
+          '<div class="task-card-name">' + escHtml(tc.fileName) + '</div>' +
+          '<div class="task-card-meta">' + escHtml(metaParts.join(' · ')) + '</div>' +
+        '</div>' +
+        '<button class="task-card-dismiss" onclick="dismissTaskCard(\'' + tc.id + '\')" title="Dismiss">&#10005;</button>' +
+      '</div>' +
+      '<div class="task-card-progress"><div class="task-card-bar"><div class="task-card-fill" style="width:' + tc.progress + '%"></div></div></div>' +
+      actionsHTML +
+      errorHTML +
+    '</div>';
+  }).join('');
+}
+
+function dismissTaskCard(cardId) {
+  const idx = taskCards.findIndex(tc => tc.id === cardId);
+  if (idx === -1) return;
+  const tc = taskCards[idx];
+  if (tc.pollTimer) clearInterval(tc.pollTimer);
+  taskCards.splice(idx, 1);
+  renderTaskCards();
+}
+
+function startCardPolling(card) {
+  if (card.pollTimer) clearInterval(card.pollTimer);
+
+  const tick = async () => {
+    if (!card.jobId) return;
+    try {
+      const r = await apiFetch(API + '/jobs/' + card.jobId);
+      const job = await r.json();
+      if (!r.ok) return;
+
+      updateCardFromJob(card, job);
+
+      if (job.status === 'done' || job.status === 'failed') {
+        clearInterval(card.pollTimer);
+        card.pollTimer = null;
+        if (job.status === 'done') {
+          triggerDownload(card.jobId);
+          toast((card.jobKind === 'video' ? 'Video' : 'GIF') + ' ready: ' + escHtml(card.fileName), 'success');
+        }
+        loadJobs();
+      }
+    } catch (e) {
+      // Transient network error — keep polling
+    }
+  };
+
+  tick();
+  card.pollTimer = setInterval(tick, 1200);
+}
+
+function updateCardFromJob(card, job) {
+  if (job.status === 'done') {
+    card.status = 'done';
+    card.progress = 100;
+    card.stage = 'Complete';
+    card.detail = '';
+    card.stagePct = 100;
+    card.completedAt = new Date();
+    card.downloadUrl = API + '/jobs/' + card.jobId + '/download';
+    card.viewUrl = API + '/jobs/' + card.jobId + '/view';
+    card.downloadName = job.download_name || job.file_name;
+  } else if (job.status === 'failed') {
+    card.status = 'failed';
+    card.error = job.error || 'Unknown error';
+    card.stage = 'Failed';
+    card.detail = job.detail || '';
+  } else if (job.status === 'queued') {
+    card.status = 'queued';
+    card.progress = 20;
+    card.stage = 'Queued';
+    card.detail = 'Waiting for worker...';
+  } else {
+    card.status = 'processing';
+    card.stage = job.stage || 'Processing';
+    card.detail = job.detail || '';
+    const raw = Number(job.progress || 0);
+    card.progress = Math.max(21, Math.min(99, Math.round(20 + (raw * 80))));
+    const stepKey = deriveJobStep(job);
+    card.stagePct = deriveStagePercent(job, stepKey) || 0;
+  }
+  renderTaskCards();
+}
+
+function resetWorkspace() {
+  stopCutPreview();
+  if (currentSession.editorObjectURL) {
+    URL.revokeObjectURL(currentSession.editorObjectURL);
+  }
+  currentSession = createSession();
+
+  document.getElementById('fileInput').value = '';
+  document.getElementById('filePreview').style.display = 'none';
+  document.getElementById('shareLink').value = '';
+  document.getElementById('convertBtn').disabled = true;
+  document.getElementById('saveBtn').disabled = true;
+  document.getElementById('saveScreenBtn').disabled = true;
+  document.getElementById('bottomSaveBtn').disabled = true;
+  document.getElementById('shareBtn').disabled = true;
+  document.getElementById('restoreDraftBtn').disabled = !draftCache;
+  document.getElementById('progressWrap').style.display = 'none';
+  document.getElementById('editorWrap').style.display = 'none';
+  document.getElementById('segmentList').innerHTML = '';
+  document.getElementById('editorSummary').innerHTML = '';
+  document.getElementById('cutRemovedLabel').textContent = '· Removed 00:00.00';
+  document.getElementById('commentText').value = '';
+
+  const video = document.getElementById('editorVideo');
+  if (video) {
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+  }
+
+  clearResultPanel();
+  refreshWorkspaceUI();
+  updateDraftStatus();
+  queueDraftSave();
+}
+
 // ── Conversion ────────────────────────────────────────────────────────────
 async function saveEditedVideo() {
-  if (!selectedFile) return;
-  setActionButtonsBusy('save');
-  clearResultPanel();
-  activeJobKind = 'video';
-  activeProgressStep = 'uploading';
-  showProgress(true);
-  setProgress(1, 'Uploading source video...', 'Preparing edited-video job', 'uploading', false, 1);
+  if (!currentSession.selectedFile) return;
 
+  // Capture session state before reset
+  const session = currentSession;
+  const fileName = session.selectedFile.name || 'recording.webm';
   const cutPayload = getNormalizedCutPayload();
+  const durationHint = session.videoDuration;
+
+  // Create task card and reset workspace immediately
+  const card = createTaskCard(fileName, 'video');
+  taskCards.unshift(card);
+  renderTaskCards();
+  resetWorkspace();
+  toast('Session queued for processing. Start a new recording anytime.', 'success');
+
+  // Build upload form from captured session
   const form = new FormData();
-  form.append('video', selectedFile, selectedFile.name || 'recording.webm');
+  form.append('video', session.selectedFile, fileName);
   form.append('cut_ranges', JSON.stringify(cutPayload));
-  if (videoDuration > 0) {
-    form.append('duration_hint', String(Number(videoDuration.toFixed(3))));
+  if (durationHint > 0) {
+    form.append('duration_hint', String(Number(durationHint.toFixed(3))));
   }
 
   try {
     const response = await uploadFormWithProgress(API + '/save-edited', form, {
       onProgress: (ratio, loaded, total) => {
-        const pct = Math.max(1, Math.min(20, Math.round(ratio * 20)));
-        setProgress(pct, 'Uploading source video...', formatBytes(loaded) + ' / ' + formatBytes(total), 'uploading', false, Math.max(1, Math.min(100, Math.round(ratio * 100))));
+        card.status = 'uploading';
+        card.progress = Math.round(ratio * 20);
+        card.stage = 'Uploading';
+        card.detail = formatBytes(loaded) + ' / ' + formatBytes(total);
+        card.stagePct = Math.round(ratio * 100);
+        renderTaskCards();
       },
       onUploadComplete: () => {
-        setProgress(22, 'Upload complete', 'Server is validating the file and creating the edit job', 'setup', false, 5);
+        card.status = 'queued';
+        card.progress = 22;
+        card.stage = 'Queued';
+        card.detail = 'Server validating...';
+        card.stagePct = 0;
+        renderTaskCards();
       },
     });
     if (!response.ok) {
-      throw new Error(response.data.error || ('HTTP ' + response.status));
+      throw new Error(response.data?.error || ('HTTP ' + response.status));
     }
     const job = response.data;
-    setProgress(28, 'Queued...', 'Edited video job accepted by the server', 'queued');
-    pollJob(job.id);
-    toast('Edited video job queued. You’ll see the finished MP4 below when it completes.', 'success');
+    card.jobId = job.id;
+    card.status = 'queued';
+    card.progress = 25;
+    card.stage = 'Queued';
+    renderTaskCards();
+    startCardPolling(card);
   } catch (e) {
-    setProgress(0, 'Save failed', e.message || 'Unable to save edited video', activeProgressStep || 'uploading', true);
-    setTimeout(() => showProgress(false), 1800);
+    card.status = 'failed';
+    card.error = e.message || 'Upload failed';
+    card.progress = 0;
+    card.stage = 'Failed';
+    renderTaskCards();
     toast('Save failed: ' + e.message, 'error');
-  } finally {
-    if (!activeJobID) {
-      setActionButtonsIdle();
-    }
+  }
+
+  // Release captured session resources
+  session.selectedFile = null;
+  if (session.editorObjectURL) {
+    URL.revokeObjectURL(session.editorObjectURL);
+    session.editorObjectURL = '';
   }
 }
 
 async function startConvert() {
-  if (!selectedFile) return;
-  setActionButtonsBusy('convert');
-  clearResultPanel();
-  activeJobKind = 'gif';
-  activeProgressStep = 'uploading';
-  showProgress(true);
-  setProgress(1, 'Uploading source video...', 'Preparing GIF job', 'uploading', false, 1);
+  if (!currentSession.selectedFile) return;
 
+  // Capture session state and GIF params before reset
+  const session = currentSession;
+  const fileName = session.selectedFile.name || 'video.mp4';
   const params = {
     fps: parseFloat(document.getElementById('fps').value),
     width: parseInt(document.getElementById('width').value),
@@ -3631,35 +3997,59 @@ async function startConvert() {
     name: activeProfile,
   };
 
+  // Create task card and reset workspace immediately
+  const card = createTaskCard(fileName, 'gif');
+  taskCards.unshift(card);
+  renderTaskCards();
+  resetWorkspace();
+  toast('GIF conversion queued. Start new work anytime.', 'success');
+
   const form = new FormData();
-  form.append('video', selectedFile);
+  form.append('video', session.selectedFile);
   form.append('params', JSON.stringify(params));
 
   try {
     const response = await uploadFormWithProgress(API + '/convert', form, {
       onProgress: (ratio, loaded, total) => {
-        const pct = Math.max(1, Math.min(20, Math.round(ratio * 20)));
-        setProgress(pct, 'Uploading source video...', formatBytes(loaded) + ' / ' + formatBytes(total), 'uploading', false, Math.max(1, Math.min(100, Math.round(ratio * 100))));
+        card.status = 'uploading';
+        card.progress = Math.round(ratio * 20);
+        card.stage = 'Uploading';
+        card.detail = formatBytes(loaded) + ' / ' + formatBytes(total);
+        card.stagePct = Math.round(ratio * 100);
+        renderTaskCards();
       },
       onUploadComplete: () => {
-        setProgress(22, 'Upload complete', 'Server is validating the file and creating the GIF job', 'setup', false, 5);
+        card.status = 'queued';
+        card.progress = 22;
+        card.stage = 'Queued';
+        card.detail = 'Server validating...';
+        card.stagePct = 0;
+        renderTaskCards();
       },
     });
-    const job = response.data;
     if (!response.ok) {
-      throw new Error(job.error || ('HTTP ' + response.status));
+      throw new Error(response.data?.error || ('HTTP ' + response.status));
     }
-    setProgress(28, 'Queued...', 'GIF job accepted by the server', 'queued');
-    pollJob(job.id);
-    toast('Job submitted! ID: ' + job.id.slice(0,8) + '…', 'success');
+    card.jobId = response.data.id;
+    card.status = 'queued';
+    card.progress = 25;
+    card.stage = 'Queued';
+    renderTaskCards();
+    startCardPolling(card);
   } catch (e) {
-    setProgress(0, 'Upload failed', e.message || 'Unable to start conversion', activeProgressStep || 'uploading', true);
-    setTimeout(() => showProgress(false), 1800);
-    toast('Network error: ' + e.message, 'error');
-  } finally {
-    if (!activeJobID) {
-      setActionButtonsIdle();
-    }
+    card.status = 'failed';
+    card.error = e.message || 'Upload failed';
+    card.progress = 0;
+    card.stage = 'Failed';
+    renderTaskCards();
+    toast('GIF upload failed: ' + e.message, 'error');
+  }
+
+  // Release captured session resources
+  session.selectedFile = null;
+  if (session.editorObjectURL) {
+    URL.revokeObjectURL(session.editorObjectURL);
+    session.editorObjectURL = '';
   }
 }
 
@@ -3744,7 +4134,7 @@ function setActionButtonsBusy(mode) {
 }
 
 function setActionButtonsIdle() {
-  const hasVideo = !!selectedFile;
+  const hasVideo = !!currentSession.selectedFile;
   const convertBtn = document.getElementById('convertBtn');
   const saveBtn = document.getElementById('saveBtn');
   const saveScreenBtn = document.getElementById('saveScreenBtn');
