@@ -31,5 +31,5 @@ docker:
 
 .PHONY: setup
 setup:
-	mkdir -p uploads outputs tmp
+	mkdir -p uploads outputs tmp jobs
 	go mod tidy

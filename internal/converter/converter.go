@@ -31,6 +31,7 @@ type ConversionJob struct {
 	InputPath   string
 	OutputPath  string
 	Profile     config.GifProfile
+	MaxFileSize int64 // Target max output size in bytes; 0 = no limit
 	CreatedAt   time.Time
 	StartedAt   *time.Time
 	CompletedAt *time.Time
@@ -54,11 +55,79 @@ func (c *Converter) Convert(ctx context.Context, job *ConversionJob) (*Conversio
 }
 
 // ConvertWithProgress runs the full two-pass GIF conversion pipeline and emits progress updates.
+// If MaxFileSize is set on the job, it will iteratively reduce quality to meet the target.
 func (c *Converter) ConvertWithProgress(ctx context.Context, job *ConversionJob, onProgress ProgressFunc) (*ConversionResult, error) {
+	result, err := c.convertOnce(ctx, job, onProgress)
+	if err != nil {
+		return nil, err
+	}
+
+	// If no size target or already under target, return immediately
+	if job.MaxFileSize <= 0 || result.OutputSize <= job.MaxFileSize {
+		return result, nil
+	}
+
+	// Iterative size reduction: up to 3 retries
+	type adjustment struct {
+		desc string
+		fn   func(p *config.GifProfile)
+	}
+
+	adjustments := []adjustment{
+		{"reducing colors", func(p *config.GifProfile) {
+			p.Colors = p.Colors / 2
+			if p.Colors < 16 {
+				p.Colors = 16
+			}
+		}},
+		{"lowering FPS", func(p *config.GifProfile) {
+			p.FPS = math.Max(5, p.FPS*0.6)
+		}},
+		{"reducing resolution", func(p *config.GifProfile) {
+			if p.Width > 0 {
+				p.Width = int(float64(p.Width) * 0.7)
+			} else {
+				p.Width = 320
+			}
+			p.Height = -1 // keep aspect ratio
+		}},
+	}
+
+	for i, adj := range adjustments {
+		if result.OutputSize <= job.MaxFileSize {
+			break
+		}
+		log.Printf("[%s] Output %s exceeds target %s — %s (retry %d/%d)",
+			job.ID, FormatBytes(result.OutputSize), FormatBytes(job.MaxFileSize), adj.desc, i+1, len(adjustments))
+
+		reportProgress(onProgress, 0.02, "Retrying", fmt.Sprintf("File too large (%s > %s), %s…", FormatBytes(result.OutputSize), FormatBytes(job.MaxFileSize), adj.desc))
+
+		adj.fn(&job.Profile)
+		_ = os.Remove(job.OutputPath)
+
+		result, err = c.convertOnce(ctx, job, onProgress)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if job.MaxFileSize > 0 && result.OutputSize > job.MaxFileSize {
+		log.Printf("[%s] Warning: could not meet target %s, final size is %s",
+			job.ID, FormatBytes(job.MaxFileSize), FormatBytes(result.OutputSize))
+	}
+
+	return result, nil
+}
+
+// convertOnce runs a single conversion attempt.
+func (c *Converter) convertOnce(ctx context.Context, job *ConversionJob, onProgress ProgressFunc) (*ConversionResult, error) {
 	start := time.Now()
 
-	log.Printf("[%s] Starting conversion: %s → %s (profile: %s)",
-		job.ID, filepath.Base(job.InputPath), filepath.Base(job.OutputPath), job.Profile.Name)
+	format := job.Profile.NormalizedOutputFormat()
+	formatLabel := strings.ToUpper(format)
+
+	log.Printf("[%s] Starting %s conversion: %s → %s (profile: %s)",
+		job.ID, formatLabel, filepath.Base(job.InputPath), filepath.Base(job.OutputPath), job.Profile.Name)
 	reportProgress(onProgress, 0.02, "Probing input", "Inspecting source video")
 
 	// Probe input
@@ -76,12 +145,18 @@ func (c *Converter) ConvertWithProgress(ctx context.Context, job *ConversionJob,
 
 	var frameCount int
 
-	if job.Profile.OptimizePalette {
-		// Two-pass conversion
-		frameCount, err = c.convertTwoPass(ctx, job, info.Duration, onProgress)
-	} else {
-		// Single-pass conversion
-		frameCount, err = c.convertSinglePass(ctx, job, info.Duration, onProgress)
+	switch format {
+	case "webp":
+		frameCount, err = c.convertWebP(ctx, job, info.Duration, onProgress)
+	case "apng":
+		frameCount, err = c.convertAPNG(ctx, job, info.Duration, onProgress)
+	default:
+		// GIF: existing two-pass or single-pass pipeline
+		if job.Profile.OptimizePalette {
+			frameCount, err = c.convertTwoPass(ctx, job, info.Duration, onProgress)
+		} else {
+			frameCount, err = c.convertSinglePass(ctx, job, info.Duration, onProgress)
+		}
 	}
 
 	if err != nil {
@@ -97,7 +172,7 @@ func (c *Converter) ConvertWithProgress(ctx context.Context, job *ConversionJob,
 	elapsed := time.Since(start)
 	log.Printf("[%s] Done in %s, output size: %s",
 		job.ID, elapsed.Round(time.Millisecond), FormatBytes(stat.Size()))
-	reportProgress(onProgress, 1.0, "Complete", "GIF ready")
+	reportProgress(onProgress, 1.0, "Complete", formatLabel+" ready")
 
 	return &ConversionResult{
 		OutputPath: job.OutputPath,
@@ -200,6 +275,84 @@ func (c *Converter) convertSinglePass(ctx context.Context, job *ConversionJob, d
 		OnProgress: onProgress,
 	}); err != nil {
 		return 0, fmt.Errorf("GIF rendering failed: %w", err)
+	}
+
+	return estimateFrameCount(p, job.InputPath, ctx), nil
+}
+
+// convertWebP produces an animated WebP using libwebp.
+func (c *Converter) convertWebP(ctx context.Context, job *ConversionJob, duration float64, onProgress ProgressFunc) (int, error) {
+	p := job.Profile
+
+	// Build video filter: segments + fps + scale + speed (no palette needed)
+	vf := buildDirectFilter(p)
+
+	args := buildCommonArgs(job)
+	args = append(args,
+		"-vf", vf,
+		"-c:v", "libwebp",
+		"-loop", strconv.Itoa(p.Loop),
+		"-an", // no audio
+	)
+
+	// WebP quality: default 75
+	quality := p.WebPQuality
+	if quality <= 0 {
+		quality = 75
+	}
+	if quality > 100 {
+		quality = 100
+	}
+	args = append(args, "-quality", strconv.Itoa(quality))
+
+	if p.WebPLossless {
+		args = append(args, "-lossless", "1")
+	}
+
+	args = append(args, "-y", job.OutputPath)
+
+	log.Printf("[%s] Rendering WebP (quality=%d, lossless=%v)...", job.ID, quality, p.WebPLossless)
+	if err := runFFmpegWithProgress(ctx, args, ffmpegProgressOptions{
+		Label:      job.ID,
+		Stage:      "Rendering WebP",
+		Duration:   duration,
+		Base:       0.08,
+		Span:       0.87,
+		OnProgress: onProgress,
+	}); err != nil {
+		return 0, fmt.Errorf("WebP rendering failed: %w", err)
+	}
+
+	return estimateFrameCount(p, job.InputPath, ctx), nil
+}
+
+// convertAPNG produces an animated PNG.
+func (c *Converter) convertAPNG(ctx context.Context, job *ConversionJob, duration float64, onProgress ProgressFunc) (int, error) {
+	p := job.Profile
+
+	// Build video filter: segments + fps + scale + speed (no palette needed)
+	vf := buildDirectFilter(p)
+
+	args := buildCommonArgs(job)
+	args = append(args,
+		"-vf", vf,
+		"-f", "apng",
+		"-plays", strconv.Itoa(p.Loop), // 0=infinite
+		"-an", // no audio
+		"-y",
+		job.OutputPath,
+	)
+
+	log.Printf("[%s] Rendering APNG...", job.ID)
+	if err := runFFmpegWithProgress(ctx, args, ffmpegProgressOptions{
+		Label:      job.ID,
+		Stage:      "Rendering APNG",
+		Duration:   duration,
+		Base:       0.08,
+		Span:       0.87,
+		OnProgress: onProgress,
+	}); err != nil {
+		return 0, fmt.Errorf("APNG rendering failed: %w", err)
 	}
 
 	return estimateFrameCount(p, job.InputPath, ctx), nil
@@ -368,6 +521,64 @@ func parseTimeLike(v string) (float64, error) {
 		mult *= 60
 	}
 	return total, nil
+}
+
+// EstimateOutputSize estimates the GIF output size in bytes based on conversion parameters.
+// Formula: frames * width * height * bytesPerPixel * compressionFactor
+// This is a rough heuristic; actual GIF sizes vary with content complexity.
+func EstimateOutputSize(info *VideoInfo, profile *config.GifProfile) int64 {
+	if info == nil || profile == nil {
+		return 0
+	}
+
+	// Determine effective duration
+	dur := effectiveDurationSeconds(info.Duration, *profile)
+	if dur <= 0 {
+		return 0
+	}
+
+	fps := clampFPS(profile.FPS)
+	frames := fps * dur
+
+	// Determine effective resolution
+	w := float64(info.Width)
+	h := float64(info.Height)
+	if profile.Width > 0 {
+		w = float64(profile.Width)
+	}
+	if profile.Height > 0 {
+		h = float64(profile.Height)
+	}
+	// If only width is set, scale height proportionally (and vice versa)
+	if profile.Width > 0 && profile.Height <= 0 && info.Height > 0 && info.Width > 0 {
+		h = float64(profile.Width) * float64(info.Height) / float64(info.Width)
+	} else if profile.Height > 0 && profile.Width <= 0 && info.Width > 0 && info.Height > 0 {
+		w = float64(profile.Height) * float64(info.Width) / float64(info.Height)
+	}
+
+	// Bytes per pixel based on color count (GIF uses indexed color, 1 byte per pixel max)
+	// With fewer colors, LZW compresses better
+	colors := float64(profile.Colors)
+	if colors < 2 {
+		colors = 2
+	}
+	if colors > 256 {
+		colors = 256
+	}
+	// Bits per pixel for the palette depth
+	bitsPerPixel := math.Ceil(math.Log2(colors))
+	bytesPerPixel := bitsPerPixel / 8.0
+
+	// GIF LZW compression factor (empirical: typical GIF achieves ~40-60% compression)
+	compressionFactor := 0.5
+
+	// Dither increases entropy (harder to compress)
+	if profile.Dither != "none" {
+		compressionFactor += 0.1
+	}
+
+	estimated := frames * w * h * bytesPerPixel * compressionFactor
+	return int64(estimated)
 }
 
 // FormatBytes returns a human-readable file size.

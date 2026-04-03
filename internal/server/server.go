@@ -27,7 +27,7 @@ func New(cfg *config.Config, configPath string) *Server {
 	}
 	s := &Server{
 		cfg:        cfg,
-		queue:      jobs.New(cfg),
+		queue:      jobs.New(cfg, cfg.Storage.JobStorePath),
 		configPath: configPath,
 		shares:     shareStore,
 		stopCh:     make(chan struct{}),
@@ -64,6 +64,7 @@ func (s *Server) Router() http.Handler {
 	privateAPI.HandleFunc("/convert", s.handleConvert).Methods("POST")
 	privateAPI.HandleFunc("/jobs", s.handleListJobs).Methods("GET")
 	privateAPI.HandleFunc("/jobs/{id}", s.handleGetJob).Methods("GET")
+	privateAPI.HandleFunc("/jobs/{id}/events", s.handleJobSSE).Methods("GET")
 	privateAPI.HandleFunc("/jobs/{id}/download", s.handleDownload).Methods("GET")
 	privateAPI.HandleFunc("/jobs/{id}/view", s.handleViewJob).Methods("GET")
 	privateAPI.HandleFunc("/jobs/{id}", s.handleDeleteJob).Methods("DELETE")
@@ -73,6 +74,7 @@ func (s *Server) Router() http.Handler {
 	privateAPI.HandleFunc("/config", s.handleGetConfig).Methods("GET")
 	privateAPI.HandleFunc("/config", s.handleUpdateConfig).Methods("PUT")
 	privateAPI.HandleFunc("/stats", s.handleStats).Methods("GET")
+	privateAPI.HandleFunc("/estimate", s.handleEstimate).Methods("POST")
 	privateAPI.HandleFunc("/probe", s.handleProbe).Methods("POST")
 	privateAPI.HandleFunc("/save-edited", s.handleSaveEdited).Methods("POST")
 	privateAPI.HandleFunc("/share", s.handleCreateShare).Methods("POST")

@@ -7,10 +7,11 @@
 		"max_upload_bytes": 524288000
 	},
 	"storage": {
-		"upload_dir": "./uploads",
-		"output_dir": "./outputs",
-		"temp_dir": "./tmp",
-		"share_dir": "./shares",
+		"upload_dir": "./storage/uploads",
+		"output_dir": "./storage/outputs",
+		"temp_dir": "./storage/tmp",
+		"share_dir": "./storage/shares",
+		"job_store_path": "./storage/jobs",
 		"max_age_hours": 24,
 		"cleanup_interval_min": 30
 	},

@@ -1,7 +1,11 @@
 .DS_Store
+storage/
 uploads
 outputs
 tmp
+shares
+jobs
 ./video2gif
 .gocache
 .gomodcache
+storage

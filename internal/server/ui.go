@@ -529,6 +529,74 @@ const uiHTML = `<!DOCTYPE html>
     pointer-events: auto;
   }
 
+  .video-overlay.crop-mode {
+    pointer-events: auto;
+    cursor: crosshair;
+  }
+
+  .crop-rect {
+    position: absolute;
+    border: 2px solid var(--accent);
+    background: rgba(124, 58, 237, 0.12);
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  .crop-rect .crop-label {
+    position: absolute;
+    bottom: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.62rem;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  .crop-handle {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: var(--accent);
+    border: 1px solid #fff;
+    border-radius: 2px;
+    pointer-events: auto;
+    z-index: 4;
+  }
+  .crop-handle.nw { top: -5px; left: -5px; cursor: nw-resize; }
+  .crop-handle.ne { top: -5px; right: -5px; cursor: ne-resize; }
+  .crop-handle.sw { bottom: -5px; left: -5px; cursor: sw-resize; }
+  .crop-handle.se { bottom: -5px; right: -5px; cursor: se-resize; }
+
+  .crop-dim-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .crop-active-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: rgba(124, 58, 237, 0.18);
+    border: 1px solid var(--accent);
+    color: var(--accent2);
+    font-size: 0.68rem;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .chip-btn.active-crop {
+    background: rgba(124, 58, 237, 0.25);
+    border-color: var(--accent);
+    color: var(--accent2);
+  }
+
   .comment-dot {
     position: absolute;
     width: 10px;
@@ -937,6 +1005,26 @@ const uiHTML = `<!DOCTYPE html>
 
   .profile-desc { font-size: 0.7rem; color: var(--muted); margin-top: 3px; }
 
+  /* Format selector */
+  .format-selector {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;
+  }
+  .format-option {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 10px 18px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--surface2);
+    cursor: pointer; font-size: 0.85rem; font-weight: 500;
+    transition: border-color 0.2s, background 0.2s;
+    flex: 1; min-width: 90px; text-align: center;
+  }
+  .format-option input[type="radio"] { display: none; }
+  .format-option:hover { border-color: var(--accent2); background: rgba(124,58,237,0.1); }
+  .format-option.active {
+    border-color: var(--accent); background: rgba(124,58,237,0.15);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .format-desc { font-size: 0.68rem; color: var(--muted); margin-top: 2px; }
+
   /* Parameters grid */
   .params-grid {
     display: grid;
@@ -1019,6 +1107,23 @@ const uiHTML = `<!DOCTYPE html>
   }
 
   .convert-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .size-preset-btn {
+    padding: 4px 10px;
+    font-size: 0.72rem;
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--surface2);
+    color: var(--accent2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .size-preset-btn:hover {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
 
   .action-row {
     margin-top: 20px;
@@ -1671,6 +1776,41 @@ const uiHTML = `<!DOCTYPE html>
 
         <div class="profiles-grid" id="profilesGrid"></div>
 
+        <div class="card-title" style="margin-top:20px">Output Format</div>
+        <div class="format-selector" id="formatSelector">
+          <label class="format-option active" data-format="gif">
+            <input type="radio" name="outputFormat" value="gif" checked> GIF
+            <span class="format-desc">Universal, large files</span>
+          </label>
+          <label class="format-option" data-format="webp">
+            <input type="radio" name="outputFormat" value="webp"> WebP
+            <span class="format-desc">Smaller, modern browsers</span>
+          </label>
+          <label class="format-option" data-format="apng">
+            <input type="radio" name="outputFormat" value="apng"> APNG
+            <span class="format-desc">PNG quality, wide support</span>
+          </label>
+        </div>
+
+        <div id="webpOptions" style="display:none;margin-top:10px">
+          <div class="params-grid">
+            <div class="param-group">
+              <label>WebP Quality (0-100)</label>
+              <div class="slider-row">
+                <input type="range" id="webpQuality" min="0" max="100" step="1" value="75" oninput="syncSlider('webpQuality','webpQualityVal')">
+                <span class="slider-val" id="webpQualityVal">75</span>
+              </div>
+            </div>
+            <div class="param-group" style="flex-direction:row;align-items:center;gap:10px">
+              <input type="checkbox" id="webpLossless" style="accent-color:var(--accent);width:16px;height:16px">
+              <label for="webpLossless" style="text-transform:none;font-size:0.82rem;color:var(--text);letter-spacing:0">
+                Lossless encoding (larger files, perfect quality)
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div id="gifOnlyOptions">
         <div class="card-title" style="margin-top:20px">Fine-tune Parameters</div>
 
         <div class="params-grid">
@@ -1738,7 +1878,28 @@ const uiHTML = `<!DOCTYPE html>
               Two-pass palette optimization (better quality, slower)
             </label>
           </div>
+
+          <div class="param-group full" style="margin-top:8px">
+            <label>Max File Size</label>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <input type="number" id="maxFileSize" value="0" min="0" step="1" placeholder="No limit"
+                style="width:120px" oninput="updateSizeEstimate()">
+              <select id="maxFileSizeUnit" style="width:80px" onchange="updateMaxFileSizeFromUnit()">
+                <option value="mb">MB</option>
+                <option value="kb">KB</option>
+              </select>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button type="button" class="size-preset-btn" onclick="setMaxFileSize(8)">8 MB</button>
+                <button type="button" class="size-preset-btn" onclick="setMaxFileSize(10)">10 MB</button>
+                <button type="button" class="size-preset-btn" onclick="setMaxFileSize(25)">25 MB</button>
+                <button type="button" class="size-preset-btn" onclick="setMaxFileSize(50)">50 MB</button>
+                <button type="button" class="size-preset-btn" onclick="setMaxFileSize(0)">No limit</button>
+              </div>
+            </div>
+            <div id="sizeEstimate" style="margin-top:6px;font-size:0.78rem;color:var(--muted);font-family:'JetBrains Mono',monospace;min-height:1.2em"></div>
+          </div>
         </div>
+        </div><!-- /gifOnlyOptions -->
 
         <div class="action-row">
           <button class="convert-btn" id="convertBtn" onclick="startConvert()" disabled>
@@ -1803,6 +1964,11 @@ const uiHTML = `<!DOCTYPE html>
                 <button class="chip-btn" type="button" id="undoBtn" onclick="undoHistory()" disabled>Undo</button>
                 <button class="chip-btn" type="button" id="redoBtn" onclick="redoHistory()" disabled>Redo</button>
                 <button class="chip-btn danger" type="button" onclick="resetCuts()">Reset Cuts</button>
+                <span style="border-left:1px solid var(--border);height:18px;margin:0 2px"></span>
+                <button class="chip-btn" type="button" id="cropToggleBtn" onclick="toggleCropMode()">Crop</button>
+                <button class="chip-btn" type="button" id="applyCropBtn" onclick="applyCrop()" style="display:none">Apply Crop</button>
+                <button class="chip-btn danger" type="button" id="clearCropBtn" onclick="clearCrop()" style="display:none">Clear Crop</button>
+                <span class="crop-active-indicator" id="cropIndicator" style="display:none"></span>
                 <span class="editor-time" id="editorNow">00:00.00 / 00:00.00</span>
               </div>
             </div>
@@ -1921,6 +2087,16 @@ function createSession() {
     historyStack: [],
     redoStack: [],
     suppressHistory: false,
+    // Crop state
+    cropMode: false,
+    cropRect: null,       // {x, y, w, h} in display-overlay coordinates
+    cropDragStart: null,  // {x, y} for initial mouse down
+    cropDragging: false,
+    cropResizing: null,   // which handle: 'nw','ne','sw','se' or null
+    cropApplied: false,   // true once user clicks "Apply Crop"
+    cropSource: null,     // {x, y, w, h} in source video pixel coordinates
+    probeWidth: 0,
+    probeHeight: 0,
   };
 }
 let currentSession = createSession();
@@ -1951,6 +2127,7 @@ let activeJobID = '';
 let activeJobKind = '';
 let activeProgressStep = '';
 let pollInterval = null;
+let activeEventSource = null;
 
 // ── Init ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -2001,6 +2178,7 @@ async function loadPrivateWorkspace() {
   await loadProfiles();
   await loadJobs();
   await loadConfig();
+  initFormatSelector();
   if (draftCache?.active_tab) {
     activeTab = draftCache.active_tab;
   }
@@ -2194,12 +2372,124 @@ function setVal(id, v) {
   if (el) el.value = v;
 }
 
+// ── Output Format ─────────────────────────────────────────────────────────
+let activeOutputFormat = 'gif';
+
+function initFormatSelector() {
+  document.querySelectorAll('.format-option').forEach(label => {
+    label.addEventListener('click', function() {
+      const radio = this.querySelector('input[type="radio"]');
+      if (radio) {
+        radio.checked = true;
+        setOutputFormat(radio.value);
+      }
+    });
+  });
+}
+
+function setOutputFormat(fmt) {
+  activeOutputFormat = fmt;
+  document.querySelectorAll('.format-option').forEach(el => {
+    el.classList.toggle('active', el.dataset.format === fmt);
+  });
+  // Show/hide GIF-only params
+  const gifOnly = document.getElementById('gifOnlyOptions');
+  if (gifOnly) gifOnly.style.display = (fmt === 'gif') ? '' : 'none';
+  // Show/hide WebP options
+  const webpOpts = document.getElementById('webpOptions');
+  if (webpOpts) webpOpts.style.display = (fmt === 'webp') ? '' : 'none';
+  // Update convert button text
+  const convertBtn = document.getElementById('convertBtn');
+  if (convertBtn) {
+    const labels = { gif: 'Convert to GIF', webp: 'Convert to WebP', apng: 'Convert to APNG' };
+    convertBtn.textContent = labels[fmt] || 'Convert';
+  }
+}
+
 // ── Sliders ───────────────────────────────────────────────────────────────
 function syncSlider(sliderId, valId) {
   const v = parseFloat(document.getElementById(sliderId).value);
   const el = document.getElementById(valId);
   if (valId === 'speedVal') el.textContent = v + '×';
   else el.textContent = v;
+}
+
+// ── File Size Targeting ──────────────────────────────────────────────────
+function setMaxFileSize(mb) {
+  const input = document.getElementById('maxFileSize');
+  const unit = document.getElementById('maxFileSizeUnit');
+  if (unit) unit.value = 'mb';
+  if (input) input.value = mb;
+  updateSizeEstimate();
+}
+
+function getMaxFileSizeBytes() {
+  const input = document.getElementById('maxFileSize');
+  const unit = document.getElementById('maxFileSizeUnit');
+  if (!input) return 0;
+  const val = parseFloat(input.value) || 0;
+  if (val <= 0) return 0;
+  const multiplier = (unit && unit.value === 'kb') ? 1024 : 1024 * 1024;
+  return Math.round(val * multiplier);
+}
+
+function updateMaxFileSizeFromUnit() {
+  updateSizeEstimate();
+}
+
+let estimateTimer = null;
+function updateSizeEstimate() {
+  if (estimateTimer) clearTimeout(estimateTimer);
+  estimateTimer = setTimeout(doUpdateSizeEstimate, 300);
+}
+
+async function doUpdateSizeEstimate() {
+  const el = document.getElementById('sizeEstimate');
+  if (!el) return;
+
+  if (!currentSession.probeInfo) {
+    el.textContent = '';
+    return;
+  }
+
+  const info = currentSession.probeInfo;
+  const params = {
+    duration: info.duration || 0,
+    width: parseInt(document.getElementById('width').value) || 640,
+    height: parseInt(document.getElementById('height').value) || -1,
+    fps: parseFloat(document.getElementById('fps').value) || 20,
+    colors: parseInt(document.getElementById('colors').value) || 256,
+    dither: document.getElementById('dither').value || 'sierra2_4a',
+    speed_multiplier: parseFloat(document.getElementById('speed').value) || 1,
+    source_width: info.width || 0,
+    source_height: info.height || 0,
+  };
+
+  try {
+    const r = await apiFetch(API + '/estimate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(params),
+    });
+    if (!r.ok) { el.textContent = ''; return; }
+    const data = await r.json();
+    const maxBytes = getMaxFileSizeBytes();
+    let text = 'Estimated output: ~' + data.estimated_size_human;
+    if (maxBytes > 0) {
+      if (data.estimated_size > maxBytes) {
+        text += ' (exceeds ' + formatBytes(maxBytes) + ' target - quality will be auto-reduced)';
+        el.style.color = 'var(--warn)';
+      } else {
+        text += ' (within ' + formatBytes(maxBytes) + ' target)';
+        el.style.color = 'var(--accent3)';
+      }
+    } else {
+      el.style.color = 'var(--muted)';
+    }
+    el.textContent = text;
+  } catch (e) {
+    el.textContent = '';
+  }
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
@@ -2645,6 +2935,7 @@ function handleFile(file) {
   activeJobKind = '';
   activeProgressStep = '';
   clearInterval(pollInterval);
+  if (activeEventSource) { activeEventSource.close(); activeEventSource = null; }
   workflowSelected = true;
   currentSession.comments = [];
   currentSession.pendingCommentPoint = null;
@@ -2676,6 +2967,7 @@ function clearFile() {
   activeJobKind = '';
   activeProgressStep = '';
   clearInterval(pollInterval);
+  if (activeEventSource) { activeEventSource.close(); activeEventSource = null; }
   document.getElementById('fileInput').value = '';
   document.getElementById('filePreview').style.display = 'none';
   document.getElementById('shareLink').value = '';
@@ -2741,6 +3033,12 @@ async function probeVideoDuration(file) {
     const r = await apiFetch(API + '/probe', { method: 'POST', body: form });
     if (!r.ok) return;
     const info = await r.json();
+    if (info && info.width > 0) currentSession.probeWidth = info.width;
+    if (info && info.height > 0) currentSession.probeHeight = info.height;
+    if (info) {
+      currentSession.probeInfo = info;
+      updateSizeEstimate();
+    }
     if (!currentSession.videoDuration && info && Number.isFinite(info.duration) && info.duration > 0) {
       setEditorDuration(info.duration);
       renderTimeline();
@@ -3104,6 +3402,182 @@ function resetCuts() {
   renderEditorSummary();
   pushHistorySnapshot();
   queueDraftSave();
+}
+
+// ---- Crop Mode ----
+
+function toggleCropMode() {
+  const overlay = document.getElementById('videoOverlay');
+  const btn = document.getElementById('cropToggleBtn');
+  if (currentSession.cropMode) {
+    // Exit crop mode without applying
+    currentSession.cropMode = false;
+    overlay.classList.remove('crop-mode');
+    btn.classList.remove('active-crop');
+    if (!currentSession.cropApplied) {
+      currentSession.cropRect = null;
+      const existingCrop = overlay.querySelector('.crop-rect');
+      if (existingCrop) existingCrop.remove();
+    }
+    document.getElementById('applyCropBtn').style.display = 'none';
+    document.getElementById('clearCropBtn').style.display = currentSession.cropApplied ? '' : 'none';
+  } else {
+    // Enter crop mode
+    currentSession.cropMode = true;
+    overlay.classList.add('crop-mode');
+    btn.classList.add('active-crop');
+    document.getElementById('applyCropBtn').style.display = '';
+    document.getElementById('clearCropBtn').style.display = '';
+    if (currentSession.cropRect) {
+      renderCropRect();
+    }
+    initCropListeners();
+  }
+}
+
+function initCropListeners() {
+  const overlay = document.getElementById('videoOverlay');
+  if (overlay._cropInit) return;
+  overlay._cropInit = true;
+
+  overlay.addEventListener('mousedown', (e) => {
+    if (!currentSession.cropMode) return;
+    // If clicking a handle, start resize
+    if (e.target.classList.contains('crop-handle')) {
+      currentSession.cropResizing = e.target.dataset.dir;
+      currentSession.cropDragStart = { x: e.offsetX, y: e.offsetY, rect: { ...currentSession.cropRect } };
+      e.preventDefault();
+      return;
+    }
+    // Start new crop draw
+    const rect = overlay.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    currentSession.cropDragging = true;
+    currentSession.cropDragStart = { x, y };
+    currentSession.cropRect = { x, y, w: 0, h: 0 };
+    e.preventDefault();
+  });
+
+  overlay.addEventListener('mousemove', (e) => {
+    if (!currentSession.cropMode) return;
+    const rect = overlay.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    if (currentSession.cropResizing && currentSession.cropDragStart) {
+      const orig = currentSession.cropDragStart.rect;
+      const dir = currentSession.cropResizing;
+      let { x, y, w, h } = orig;
+      const dx = mx - currentSession.cropDragStart.x;
+      const dy = my - currentSession.cropDragStart.y;
+      if (dir.includes('w')) { x = orig.x + dx; w = orig.w - dx; }
+      if (dir.includes('e')) { w = orig.w + dx; }
+      if (dir.includes('n')) { y = orig.y + dy; h = orig.h - dy; }
+      if (dir.includes('s')) { h = orig.h + dy; }
+      if (w < 10) w = 10;
+      if (h < 10) h = 10;
+      currentSession.cropRect = { x: Math.max(0, x), y: Math.max(0, y), w, h };
+      renderCropRect();
+      e.preventDefault();
+      return;
+    }
+
+    if (currentSession.cropDragging && currentSession.cropDragStart) {
+      const sx = currentSession.cropDragStart.x;
+      const sy = currentSession.cropDragStart.y;
+      currentSession.cropRect = {
+        x: Math.min(sx, mx),
+        y: Math.min(sy, my),
+        w: Math.abs(mx - sx),
+        h: Math.abs(my - sy),
+      };
+      renderCropRect();
+      e.preventDefault();
+    }
+  });
+
+  const endDrag = () => {
+    currentSession.cropDragging = false;
+    currentSession.cropResizing = null;
+    currentSession.cropDragStart = null;
+  };
+  overlay.addEventListener('mouseup', endDrag);
+  overlay.addEventListener('mouseleave', endDrag);
+}
+
+function renderCropRect() {
+  const overlay = document.getElementById('videoOverlay');
+  const cr = currentSession.cropRect;
+  // Remove any existing crop rect element
+  const existing = overlay.querySelector('.crop-rect');
+  if (existing) existing.remove();
+
+  if (!cr || cr.w < 2 || cr.h < 2) return;
+
+  const video = document.getElementById('editorVideo');
+  const info = currentSession.probeInfo;
+  let dimLabel = Math.round(cr.w) + ' x ' + Math.round(cr.h);
+  if (info && video.clientWidth > 0 && video.clientHeight > 0) {
+    const sx = Math.round(cr.w / video.clientWidth * info.width);
+    const sy = Math.round(cr.h / video.clientHeight * info.height);
+    dimLabel = sx + ' x ' + sy + ' px';
+  }
+  const div = document.createElement('div');
+  div.className = 'crop-rect';
+  div.style.cssText = 'left:' + cr.x + 'px;top:' + cr.y + 'px;width:' + cr.w + 'px;height:' + cr.h + 'px';
+  div.innerHTML =
+    '<span class="crop-label">' + dimLabel + '</span>' +
+    '<div class="crop-handle nw" data-dir="nw"></div>' +
+    '<div class="crop-handle ne" data-dir="ne"></div>' +
+    '<div class="crop-handle sw" data-dir="sw"></div>' +
+    '<div class="crop-handle se" data-dir="se"></div>';
+  overlay.appendChild(div);
+}
+
+function applyCrop() {
+  const cr = currentSession.cropRect;
+  const video = document.getElementById('editorVideo');
+  const info = currentSession.probeInfo;
+  if (!cr || cr.w < 10 || cr.h < 10 || !info || video.clientWidth <= 0) {
+    toast('Draw a crop region on the video first', 'error');
+    return;
+  }
+  // Map display coordinates to source video pixels
+  const scaleX = info.width / video.clientWidth;
+  const scaleY = info.height / video.clientHeight;
+  currentSession.cropSource = {
+    x: Math.max(0, Math.round(cr.x * scaleX)),
+    y: Math.max(0, Math.round(cr.y * scaleY)),
+    w: Math.min(info.width, Math.round(cr.w * scaleX)),
+    h: Math.min(info.height, Math.round(cr.h * scaleY)),
+  };
+  currentSession.cropApplied = true;
+  currentSession.cropMode = false;
+  document.getElementById('videoOverlay').classList.remove('crop-mode');
+  document.getElementById('cropToggleBtn').classList.remove('active-crop');
+  document.getElementById('applyCropBtn').style.display = 'none';
+  document.getElementById('clearCropBtn').style.display = '';
+  document.getElementById('cropIndicator').style.display = '';
+  document.getElementById('cropIndicator').textContent =
+    'Crop: ' + currentSession.cropSource.w + 'x' + currentSession.cropSource.h;
+  toast('Crop applied: ' + currentSession.cropSource.w + 'x' + currentSession.cropSource.h, 'success');
+}
+
+function clearCrop() {
+  currentSession.cropRect = null;
+  currentSession.cropSource = null;
+  currentSession.cropApplied = false;
+  currentSession.cropMode = false;
+  const overlay = document.getElementById('videoOverlay');
+  overlay.classList.remove('crop-mode');
+  const existingCrop = overlay.querySelector('.crop-rect');
+  if (existingCrop) existingCrop.remove();
+  document.getElementById('cropToggleBtn').classList.remove('active-crop');
+  document.getElementById('applyCropBtn').style.display = 'none';
+  document.getElementById('clearCropBtn').style.display = 'none';
+  document.getElementById('cropIndicator').style.display = 'none';
+  toast('Crop cleared', 'success');
 }
 
 function removeCut(index) {
@@ -3651,7 +4125,7 @@ function updateDraftStatus() {
 }
 
 function bindDraftAwareInputs() {
-	['fps', 'colors', 'width', 'height', 'dither', 'bayerScale', 'speed', 'loop', 'optimizePalette', 'recordSystemAudio', 'recordMicrophone', 'recordFrameRate', 'playbackRate', 'cutStart', 'cutEnd', 'shareAuthor', 'commentAuthor', 'shareExpiryHours'].forEach(id => {
+	['fps', 'colors', 'width', 'height', 'dither', 'bayerScale', 'speed', 'loop', 'optimizePalette', 'maxFileSize', 'maxFileSizeUnit', 'recordSystemAudio', 'recordMicrophone', 'recordFrameRate', 'playbackRate', 'cutStart', 'cutEnd', 'shareAuthor', 'commentAuthor', 'shareExpiryHours'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     el.addEventListener('change', queueDraftSave);
@@ -3800,11 +4274,48 @@ function dismissTaskCard(cardId) {
   if (idx === -1) return;
   const tc = taskCards[idx];
   if (tc.pollTimer) clearInterval(tc.pollTimer);
+  if (tc.eventSource) { tc.eventSource.close(); tc.eventSource = null; }
   taskCards.splice(idx, 1);
   renderTaskCards();
 }
 
 function startCardPolling(card) {
+  if (card.pollTimer) clearInterval(card.pollTimer);
+  if (card.eventSource) { card.eventSource.close(); card.eventSource = null; }
+
+  function handleCardEvent(data) {
+    const job = data.job;
+    updateCardFromJob(card, job);
+    if (data.type === 'completed' || data.type === 'failed') {
+      if (card.pollTimer) { clearInterval(card.pollTimer); card.pollTimer = null; }
+      if (card.eventSource) { card.eventSource.close(); card.eventSource = null; }
+      if (data.type === 'completed') {
+        triggerDownload(card.jobId);
+        toast((card.jobKind === 'video' ? 'Video' : 'GIF') + ' ready: ' + escHtml(card.fileName), 'success');
+      }
+      loadJobs();
+    }
+  }
+
+  // Try SSE first
+  try {
+    const es = new EventSource(API + '/jobs/' + card.jobId + '/events');
+    card.eventSource = es;
+    es.onmessage = function(e) {
+      try { handleCardEvent(JSON.parse(e.data)); } catch (_) {}
+    };
+    es.onerror = function() {
+      es.close();
+      card.eventSource = null;
+      // Fall back to polling
+      startCardPollingFallback(card, handleCardEvent);
+    };
+  } catch (_) {
+    startCardPollingFallback(card, handleCardEvent);
+  }
+}
+
+function startCardPollingFallback(card, handleCardEvent) {
   if (card.pollTimer) clearInterval(card.pollTimer);
 
   const tick = async () => {
@@ -3813,20 +4324,12 @@ function startCardPolling(card) {
       const r = await apiFetch(API + '/jobs/' + card.jobId);
       const job = await r.json();
       if (!r.ok) return;
-
-      updateCardFromJob(card, job);
-
-      if (job.status === 'done' || job.status === 'failed') {
-        clearInterval(card.pollTimer);
-        card.pollTimer = null;
-        if (job.status === 'done') {
-          triggerDownload(card.jobId);
-          toast((card.jobKind === 'video' ? 'Video' : 'GIF') + ' ready: ' + escHtml(card.fileName), 'success');
-        }
-        loadJobs();
-      }
+      let type = 'progress';
+      if (job.status === 'done') type = 'completed';
+      else if (job.status === 'failed') type = 'failed';
+      handleCardEvent({ type, job });
     } catch (e) {
-      // Transient network error — keep polling
+      // Transient network error -- keep polling
     }
   };
 
@@ -3977,9 +4480,11 @@ async function saveEditedVideo() {
 async function startConvert() {
   if (!currentSession.selectedFile) return;
 
-  // Capture session state and GIF params before reset
+  // Capture session state and params before reset
   const session = currentSession;
   const fileName = session.selectedFile.name || 'video.mp4';
+  const fmt = activeOutputFormat || 'gif';
+  const fmtLabel = fmt.toUpperCase();
   const params = {
     fps: parseFloat(document.getElementById('fps').value),
     width: parseInt(document.getElementById('width').value),
@@ -3995,6 +4500,13 @@ async function startConvert() {
     optimize_palette: document.getElementById('optimizePalette').checked,
     stats_mode: 'diff',
     name: activeProfile,
+    output_format: fmt,
+    webp_quality: parseInt(document.getElementById('webpQuality').value) || 75,
+    webp_lossless: document.getElementById('webpLossless').checked,
+    crop_x: session.cropSource ? session.cropSource.x : 0,
+    crop_y: session.cropSource ? session.cropSource.y : 0,
+    crop_w: session.cropSource ? session.cropSource.w : 0,
+    crop_h: session.cropSource ? session.cropSource.h : 0,
   };
 
   // Create task card and reset workspace immediately
@@ -4002,11 +4514,16 @@ async function startConvert() {
   taskCards.unshift(card);
   renderTaskCards();
   resetWorkspace();
-  toast('GIF conversion queued. Start new work anytime.', 'success');
+  toast(fmtLabel + ' conversion queued. Start new work anytime.', 'success');
 
   const form = new FormData();
   form.append('video', session.selectedFile);
   form.append('params', JSON.stringify(params));
+  form.append('format', fmt);
+  const maxBytes = getMaxFileSizeBytes();
+  if (maxBytes > 0) {
+    form.append('maxFileSize', String(maxBytes));
+  }
 
   try {
     const response = await uploadFormWithProgress(API + '/convert', form, {
@@ -4042,7 +4559,7 @@ async function startConvert() {
     card.progress = 0;
     card.stage = 'Failed';
     renderTaskCards();
-    toast('GIF upload failed: ' + e.message, 'error');
+    toast(fmtLabel + ' upload failed: ' + e.message, 'error');
   }
 
   // Release captured session resources
@@ -4055,32 +4572,71 @@ async function startConvert() {
 
 function pollJob(id) {
   clearInterval(pollInterval);
+  if (activeEventSource) { activeEventSource.close(); activeEventSource = null; }
+  if (activeEventSource) { activeEventSource.close(); activeEventSource = null; }
   activeJobID = id;
+
+  function handleEvent(data) {
+    const job = data.job;
+    updateProgress(job);
+    if (data.type === 'completed') {
+      closeActiveSSE();
+      activeJobID = '';
+      const downloadKind = job.kind === 'video' ? 'Edited video' : 'GIF';
+      setProgress(100, 'Complete!', downloadKind + ' ready for download', 'complete', false, 100);
+      showJobResult(job);
+      setTimeout(() => triggerDownload(id), 250);
+      toast(downloadKind + ' complete. Download starting...', 'success');
+      setActionButtonsIdle();
+      loadJobs();
+    } else if (data.type === 'failed') {
+      closeActiveSSE();
+      activeJobID = '';
+      setProgress(jobProgressPercent(job), 'Failed', '\u274c ' + (job.error || 'Unknown error'), deriveJobStep(job), true, deriveStagePercent(job, deriveJobStep(job)));
+      toast((job.kind === 'video' ? 'Video export failed: ' : 'Conversion failed: ') + (job.error || ''), 'error');
+      setActionButtonsIdle();
+      loadJobs();
+    }
+  }
+
+  function closeActiveSSE() {
+    if (activeEventSource) { activeEventSource.close(); activeEventSource = null; }
+  }
+
+  // Try SSE first
+  try {
+    const es = new EventSource(API + '/jobs/' + id + '/events');
+    activeEventSource = es;
+    es.onmessage = function(e) {
+      try { handleEvent(JSON.parse(e.data)); } catch (_) {}
+    };
+    es.onerror = function() {
+      es.close();
+      activeEventSource = null;
+      // Fall back to polling
+      pollJobFallback(id, handleEvent);
+    };
+  } catch (_) {
+    pollJobFallback(id, handleEvent);
+  }
+}
+
+function pollJobFallback(id, handleEvent) {
+  clearInterval(pollInterval);
+  if (activeEventSource) { activeEventSource.close(); activeEventSource = null; }
 
   const tick = async () => {
     try {
       const r = await apiFetch(API + '/jobs/' + id);
       const job = await r.json();
       if (!r.ok) throw new Error(job.error || ('HTTP ' + r.status));
-      updateProgress(job);
-
-      if (job.status === 'done') {
+      let type = 'progress';
+      if (job.status === 'done') type = 'completed';
+      else if (job.status === 'failed') type = 'failed';
+      handleEvent({ type, job });
+      if (type === 'completed' || type === 'failed') {
         clearInterval(pollInterval);
-        activeJobID = '';
-        const downloadKind = job.kind === 'video' ? 'Edited video' : 'GIF';
-        setProgress(100, 'Complete!', downloadKind + ' ready for download', 'complete', false, 100);
-        showJobResult(job);
-        setTimeout(() => triggerDownload(id), 250);
-        toast(downloadKind + ' complete. Download starting...', 'success');
-        setActionButtonsIdle();
-        loadJobs();
-      } else if (job.status === 'failed') {
-        clearInterval(pollInterval);
-        activeJobID = '';
-        setProgress(jobProgressPercent(job), 'Failed', '❌ ' + (job.error || 'Unknown error'), deriveJobStep(job), true, deriveStagePercent(job, deriveJobStep(job)));
-        toast((job.kind === 'video' ? 'Video export failed: ' : 'Conversion failed: ') + (job.error || ''), 'error');
-        setActionButtonsIdle();
-        loadJobs();
+  if (activeEventSource) { activeEventSource.close(); activeEventSource = null; }
       }
     } catch (e) {
       if (!activeJobID) return;
@@ -4264,19 +4820,21 @@ function showJobResult(job) {
   const downloadURL = API + '/jobs/' + job.id + '/download';
   const size = job.result?.output_size ? formatBytes(job.result.output_size) : '';
   const fileName = job.download_name || job.file_name || 'result';
-  const kindLabel = job.kind === 'video' ? 'Edited video' : 'GIF';
+  const ext = (fileName.match(/\.(\w+)$/) || [])[1] || '';
+  const fmtMap = { gif: 'GIF', webp: 'WebP', apng: 'APNG', png: 'APNG' };
+  const kindLabel = job.kind === 'video' ? 'Edited video' : (fmtMap[ext] || 'GIF');
 
   title.textContent = kindLabel + ' ready';
   meta.textContent = [fileName, size, job.stage || 'Complete'].filter(Boolean).join(' · ');
   viewLink.href = viewURL;
-  viewLink.textContent = job.kind === 'video' ? 'Open Video' : 'Open GIF';
+  viewLink.textContent = job.kind === 'video' ? 'Open Video' : ('Open ' + kindLabel);
   downloadLink.href = downloadURL;
-  downloadLink.textContent = job.kind === 'video' ? 'Download MP4' : 'Download GIF';
+  downloadLink.textContent = job.kind === 'video' ? 'Download MP4' : ('Download ' + kindLabel);
 
   if (job.kind === 'video') {
     preview.innerHTML = '<video controls preload="metadata" src="' + viewURL + '"></video>';
   } else {
-    preview.innerHTML = '<img alt="Rendered GIF preview" src="' + viewURL + '">';
+    preview.innerHTML = '<img alt="Rendered ' + kindLabel + ' preview" src="' + viewURL + '">';
   }
 
   panel.style.display = 'block';
@@ -4368,6 +4926,7 @@ async function deleteJob(id) {
     activeJobKind = '';
     activeProgressStep = '';
     clearInterval(pollInterval);
+  if (activeEventSource) { activeEventSource.close(); activeEventSource = null; }
     setActionButtonsIdle();
     showProgress(false);
     clearResultPanel();

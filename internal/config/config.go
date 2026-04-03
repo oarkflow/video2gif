@@ -4,6 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
+)
+
+const (
+	defaultUploadDir    = "./storage/uploads"
+	defaultOutputDir    = "./storage/outputs"
+	defaultTempDir      = "./storage/tmp"
+	defaultShareDir     = "./storage/shares"
+	defaultJobStorePath = "./storage/jobs"
 )
 
 // Config is the root configuration structure loaded from config.json
@@ -30,6 +40,7 @@ type StorageConfig struct {
 	OutputDir          string `json:"output_dir"`
 	TempDir            string `json:"temp_dir"`
 	ShareDir           string `json:"share_dir"`
+	JobStorePath       string `json:"job_store_path"`
 	MaxAgeHours        int    `json:"max_age_hours"`
 	CleanupIntervalMin int    `json:"cleanup_interval_min"`
 }
@@ -75,6 +86,49 @@ type GifProfile struct {
 	Duration        string        `json:"duration"`                // e.g. "10" (seconds)
 	SpeedMultiplier float64       `json:"speed_multiplier"`        // 0.25–4.0
 	KeepSegments    []ClipSegment `json:"keep_segments,omitempty"` // Segments to keep and concatenate
+	CropX           int           `json:"crop_x,omitempty"`        // Crop region X offset (pixels, source resolution)
+	CropY           int           `json:"crop_y,omitempty"`        // Crop region Y offset (pixels, source resolution)
+	CropWidth       int           `json:"crop_w,omitempty"`        // Crop region width (pixels, source resolution)
+	CropHeight      int           `json:"crop_h,omitempty"`        // Crop region height (pixels, source resolution)
+	OutputFormat    string        `json:"output_format"`           // gif | webp | apng (default: gif)
+	WebPQuality     int           `json:"webp_quality"`            // 0–100, used for WebP encoding quality
+	WebPLossless    bool          `json:"webp_lossless"`           // Use lossless WebP encoding
+}
+
+// OutputFormatExt returns the file extension for the configured output format.
+func (p GifProfile) OutputFormatExt() string {
+	switch p.NormalizedOutputFormat() {
+	case "webp":
+		return ".webp"
+	case "apng":
+		return ".apng"
+	default:
+		return ".gif"
+	}
+}
+
+// NormalizedOutputFormat returns the output format, defaulting to "gif".
+func (p GifProfile) NormalizedOutputFormat() string {
+	switch strings.ToLower(strings.TrimSpace(p.OutputFormat)) {
+	case "webp":
+		return "webp"
+	case "apng":
+		return "apng"
+	default:
+		return "gif"
+	}
+}
+
+// OutputContentType returns the MIME type for the configured output format.
+func (p GifProfile) OutputContentType() string {
+	switch p.NormalizedOutputFormat() {
+	case "webp":
+		return "image/webp"
+	case "apng":
+		return "image/apng"
+	default:
+		return "image/gif"
+	}
 }
 
 // Load reads and validates configuration from a JSON file.
@@ -103,8 +157,12 @@ func Default() *Config {
 			MaxUploadBytes: 500 * 1024 * 1024,
 		},
 		Storage: StorageConfig{
-			UploadDir: "./uploads", OutputDir: "./outputs", TempDir: "./tmp", ShareDir: "./shares",
-			MaxAgeHours: 24, CleanupIntervalMin: 30,
+			UploadDir:    defaultUploadDir,
+			OutputDir:    defaultOutputDir,
+			TempDir:      defaultTempDir,
+			ShareDir:     defaultShareDir,
+			JobStorePath: defaultJobStorePath,
+			MaxAgeHours:  24, CleanupIntervalMin: 30,
 		},
 		Queue:          QueueConfig{Workers: 4, MaxQueueSize: 100, JobTimeoutSec: 600},
 		Auth:           AuthConfig{Enabled: false, SessionTTLHours: 12},
@@ -115,7 +173,7 @@ func Default() *Config {
 				Name: "balanced", FPS: 20, Width: 640, Height: -1,
 				Colors: 256, Dither: "sierra2_4a", BayerScale: 2,
 				Loop: 0, OptimizePalette: true, StatsMode: "diff",
-				SpeedMultiplier: 1.0,
+				SpeedMultiplier: 1.0, OutputFormat: "gif",
 			},
 		},
 	}
@@ -176,18 +234,11 @@ func (c *Config) applyDefaults() {
 	if c.Server.MaxUploadBytes == 0 {
 		c.Server.MaxUploadBytes = 500 * 1024 * 1024
 	}
-	if c.Storage.UploadDir == "" {
-		c.Storage.UploadDir = "./uploads"
-	}
-	if c.Storage.OutputDir == "" {
-		c.Storage.OutputDir = "./outputs"
-	}
-	if c.Storage.TempDir == "" {
-		c.Storage.TempDir = "./tmp"
-	}
-	if c.Storage.ShareDir == "" {
-		c.Storage.ShareDir = "./shares"
-	}
+	c.Storage.UploadDir = normalizeRuntimePath(c.Storage.UploadDir, defaultUploadDir, "./uploads", "uploads")
+	c.Storage.OutputDir = normalizeRuntimePath(c.Storage.OutputDir, defaultOutputDir, "./outputs", "outputs")
+	c.Storage.TempDir = normalizeRuntimePath(c.Storage.TempDir, defaultTempDir, "./tmp", "tmp")
+	c.Storage.ShareDir = normalizeRuntimePath(c.Storage.ShareDir, defaultShareDir, "./shares", "shares")
+	c.Storage.JobStorePath = normalizeRuntimePath(c.Storage.JobStorePath, defaultJobStorePath, "./jobs", "jobs")
 	if c.Queue.Workers == 0 {
 		c.Queue.Workers = 4
 	}
@@ -207,9 +258,28 @@ func (c *Config) applyDefaults() {
 		c.DefaultProfile = "balanced"
 	}
 	// Ensure dirs exist
-	for _, d := range []string{c.Storage.UploadDir, c.Storage.OutputDir, c.Storage.TempDir, c.Storage.ShareDir} {
+	for _, d := range []string{c.Storage.UploadDir, c.Storage.OutputDir, c.Storage.TempDir, c.Storage.ShareDir, c.Storage.JobStorePath} {
 		_ = os.MkdirAll(d, 0755)
 	}
+}
+
+func normalizeRuntimePath(current, fallback string, legacy ...string) string {
+	current = strings.TrimSpace(current)
+	if current == "" {
+		return fallback
+	}
+	cleaned := filepath.Clean(current)
+	for _, candidate := range legacy {
+		if cleaned == filepath.Clean(candidate) {
+			return fallback
+		}
+	}
+	return current
+}
+
+// ApplyDefaults fills unset values and normalizes runtime storage paths.
+func (c *Config) ApplyDefaults() {
+	c.applyDefaults()
 }
 
 // GetProfile returns a profile by name, falling back to default.

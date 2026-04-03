@@ -14,6 +14,9 @@ import (
 func BuildPaletteFilter(p config.GifProfile) (pass1Filter, pass2Filter string) {
 	segmentPrefix, inputLabel := buildSegmentSourceFilter(p)
 
+	// Crop filter (applied before scale so scale works on cropped region)
+	cropFilter := buildCropFilter(p)
+
 	// Scale filter
 	scaleFilter := buildScaleFilter(p)
 
@@ -35,9 +38,9 @@ func BuildPaletteFilter(p config.GifProfile) (pass1Filter, pass2Filter string) {
 
 	if p.OptimizePalette {
 		// Two-pass:
-		// Pass 1: video → scale → fps → palettegen
-		pass1Main := fmt.Sprintf("%s%s,%s%s,palettegen=max_colors=%d:stats_mode=%s[palette]",
-			inputLabel, fpsFilter, scaleFilter, speedFilter, p.Colors, statsMode)
+		// Pass 1: video → crop → scale → fps → palettegen
+		pass1Main := fmt.Sprintf("%s%s,%s%s%s,palettegen=max_colors=%d:stats_mode=%s[palette]",
+			inputLabel, fpsFilter, cropFilter, scaleFilter, speedFilter, p.Colors, statsMode)
 		if segmentPrefix != "" {
 			pass1Filter = segmentPrefix + ";" + pass1Main
 		} else {
@@ -46,8 +49,8 @@ func BuildPaletteFilter(p config.GifProfile) (pass1Filter, pass2Filter string) {
 
 		// Pass 2: video + palette → paletteuse
 		ditherOpts := buildDitherOpts(p)
-		pass2Main := fmt.Sprintf("%s%s,%s%s[vprep];[vprep][1:v]paletteuse=dither=%s%s",
-			inputLabel, fpsFilter, scaleFilter, speedFilter, p.Dither, ditherOpts)
+		pass2Main := fmt.Sprintf("%s%s,%s%s%s[vprep];[vprep][1:v]paletteuse=dither=%s%s",
+			inputLabel, fpsFilter, cropFilter, scaleFilter, speedFilter, p.Dither, ditherOpts)
 		if segmentPrefix != "" {
 			pass2Filter = segmentPrefix + ";" + pass2Main
 		} else {
@@ -57,8 +60,8 @@ func BuildPaletteFilter(p config.GifProfile) (pass1Filter, pass2Filter string) {
 		// Single-pass: simpler but lower quality
 		pass1Filter = ""
 		pass2Main := fmt.Sprintf(
-			"%s%s,%s%s,split[a][b];[a]palettegen=max_colors=%d:stats_mode=%s[palette];[b][palette]paletteuse=dither=%s%s",
-			inputLabel, fpsFilter, scaleFilter, speedFilter, p.Colors, statsMode, p.Dither, buildDitherOpts(p),
+			"%s%s,%s%s%s,split[a][b];[a]palettegen=max_colors=%d:stats_mode=%s[palette];[b][palette]paletteuse=dither=%s%s",
+			inputLabel, fpsFilter, cropFilter, scaleFilter, speedFilter, p.Colors, statsMode, p.Dither, buildDitherOpts(p),
 		)
 		if segmentPrefix != "" {
 			pass2Filter = segmentPrefix + ";" + pass2Main
@@ -98,6 +101,15 @@ func buildSegmentSourceFilter(p config.GifProfile) (prefix string, inputLabel st
 		parts = append(parts, fmt.Sprintf("%sconcat=n=%d:v=1:a=0[vsrc]", strings.Join(concatInputs, ""), len(concatInputs)))
 		return strings.Join(parts, ";"), "[vsrc]"
 	}
+}
+
+// buildCropFilter returns an ffmpeg crop filter string with a trailing comma,
+// or an empty string if no crop is configured.
+func buildCropFilter(p config.GifProfile) string {
+	if p.CropWidth <= 0 || p.CropHeight <= 0 {
+		return ""
+	}
+	return fmt.Sprintf("crop=%d:%d:%d:%d,", p.CropWidth, p.CropHeight, p.CropX, p.CropY)
 }
 
 func buildScaleFilter(p config.GifProfile) string {
@@ -157,4 +169,26 @@ func PalettePath(tempDir, jobID string) string {
 // CleanupPalette removes the temporary palette file.
 func CleanupPalette(path string) {
 	_ = os.Remove(path)
+}
+
+// buildDirectFilter constructs a video filter chain for formats that do not need palette
+// generation (WebP, APNG). It handles segments, crop, scale, FPS, and speed.
+func buildDirectFilter(p config.GifProfile) string {
+	segmentPrefix, inputLabel := buildSegmentSourceFilter(p)
+
+	cropFilter := buildCropFilter(p)
+	scaleFilter := buildScaleFilter(p)
+	fpsFilter := fmt.Sprintf("fps=%.4f", clampFPS(p.FPS))
+
+	var speedFilter string
+	if p.SpeedMultiplier != 0 && p.SpeedMultiplier != 1.0 {
+		pts := 1.0 / p.SpeedMultiplier
+		speedFilter = fmt.Sprintf(",setpts=%.4f*PTS", pts)
+	}
+
+	main := fmt.Sprintf("%s%s,%s%s%s", inputLabel, fpsFilter, cropFilter, scaleFilter, speedFilter)
+	if segmentPrefix != "" {
+		return segmentPrefix + ";" + main
+	}
+	return main
 }

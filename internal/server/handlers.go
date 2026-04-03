@@ -18,6 +18,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/oarkflow/video2gif/internal/config"
 	"github.com/oarkflow/video2gif/internal/converter"
+	"github.com/oarkflow/video2gif/internal/jobs"
 )
 
 // Allowed video MIME types
@@ -84,6 +85,11 @@ func (s *Server) handleConvert(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Accept explicit format override from form field
+	if fmtVal := r.FormValue("format"); fmtVal != "" {
+		profile.OutputFormat = fmtVal
+	}
+
 	// Save upload
 	jobID := uuid.New().String()
 	uploadPath := filepath.Join(s.cfg.Storage.UploadDir, jobID+ext)
@@ -107,11 +113,19 @@ func (s *Server) handleConvert(w http.ResponseWriter, r *http.Request) {
 	}
 	dst.Close()
 
-	// Build output path
-	outputPath := filepath.Join(s.cfg.Storage.OutputDir, jobID+".gif")
+	// Build output path with correct extension for output format
+	outputPath := filepath.Join(s.cfg.Storage.OutputDir, jobID+profile.OutputFormatExt())
+
+	// Parse optional max file size
+	var maxFileSize int64
+	if raw := r.FormValue("maxFileSize"); raw != "" {
+		if v, err := strconv.ParseInt(raw, 10, 64); err == nil && v > 0 {
+			maxFileSize = v
+		}
+	}
 
 	// Submit to queue
-	job, err := s.queue.Submit(uploadPath, outputPath, header.Filename, profile)
+	job, err := s.queue.Submit(uploadPath, outputPath, header.Filename, profile, maxFileSize)
 	if err != nil {
 		os.Remove(uploadPath)
 		jsonError(w, "queue full: "+err.Error(), http.StatusServiceUnavailable)
@@ -131,6 +145,71 @@ func (s *Server) handleGetJob(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, job, http.StatusOK)
 }
 
+func (s *Server) handleJobSSE(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	job, ok := s.queue.Get(id)
+	if !ok {
+		jsonError(w, "job not found", http.StatusNotFound)
+		return
+	}
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		jsonError(w, "streaming not supported", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+
+	// Send initial state immediately.
+	initialType := "progress"
+	switch job.Status {
+	case "done":
+		initialType = "completed"
+	case "failed":
+		initialType = "failed"
+	}
+	writeSSEEvent(w, flusher, initialType, job)
+
+	// If the job is already terminal, close right away.
+	if job.Status == "done" || job.Status == "failed" {
+		return
+	}
+
+	ch := s.queue.Subscribe(id)
+	defer s.queue.Unsubscribe(id, ch)
+
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case evt, ok := <-ch:
+			if !ok {
+				return
+			}
+			writeSSEEvent(w, flusher, evt.Type, evt.Job)
+			if evt.Type == "completed" || evt.Type == "failed" {
+				return
+			}
+		}
+	}
+}
+
+func writeSSEEvent(w http.ResponseWriter, flusher http.Flusher, eventType string, job *jobs.Job) {
+	data, err := json.Marshal(map[string]any{
+		"type": eventType,
+		"job":  job,
+	})
+	if err != nil {
+		return
+	}
+	fmt.Fprintf(w, "data: %s\n\n", data)
+	flusher.Flush()
+}
+
 func (s *Server) handleListJobs(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, s.queue.List(), http.StatusOK)
 }
@@ -145,6 +224,7 @@ func (s *Server) handleDeleteJob(w http.ResponseWriter, r *http.Request) {
 	// Clean up files
 	_ = os.Remove(job.InputPath)
 	_ = os.Remove(job.OutputPath)
+	s.queue.Delete(id)
 	jsonOK(w, map[string]string{"deleted": id}, http.StatusOK)
 }
 
@@ -171,11 +251,11 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 	downloadName := job.DownloadName
 	if strings.TrimSpace(downloadName) == "" {
 		base := strings.TrimSuffix(job.FileName, filepath.Ext(job.FileName))
-		downloadName = fmt.Sprintf("%s_%s.gif", base, job.Profile.Name)
+		downloadName = fmt.Sprintf("%s_%s%s", base, job.Profile.Name, job.Profile.OutputFormatExt())
 	}
 	contentType := strings.TrimSpace(job.ContentType)
 	if contentType == "" {
-		contentType = "application/octet-stream"
+		contentType = job.Profile.OutputContentType()
 	}
 
 	w.Header().Set("Content-Type", contentType)
@@ -276,6 +356,7 @@ func (s *Server) handleUpdateConfig(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "validation error: "+err.Error(), http.StatusBadRequest)
 		return
 	}
+	cfg.ApplyDefaults()
 	*s.cfg = cfg
 	if err := s.cfg.Save(s.configPath); err != nil {
 		log.Printf("Warning: could not save config: %v", err)
@@ -726,6 +807,62 @@ func normalizeClipSegments(in []config.ClipSegment, duration float64) []config.C
 		}
 	}
 	return merged
+}
+
+func (s *Server) handleEstimate(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Duration        float64 `json:"duration"`
+		Width           int     `json:"width"`
+		Height          int     `json:"height"`
+		FPS             float64 `json:"fps"`
+		Colors          int     `json:"colors"`
+		Dither          string  `json:"dither"`
+		SpeedMultiplier float64 `json:"speed_multiplier"`
+		SourceWidth     int     `json:"source_width"`
+		SourceHeight    int     `json:"source_height"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonError(w, "invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	info := &converter.VideoInfo{
+		Duration: req.Duration,
+		Width:    req.SourceWidth,
+		Height:   req.SourceHeight,
+		FPS:      req.FPS,
+	}
+	if info.Width <= 0 {
+		info.Width = req.Width
+	}
+	if info.Height <= 0 {
+		info.Height = req.Height
+	}
+
+	profile := &config.GifProfile{
+		FPS:             req.FPS,
+		Width:           req.Width,
+		Height:          req.Height,
+		Colors:          req.Colors,
+		Dither:          req.Dither,
+		SpeedMultiplier: req.SpeedMultiplier,
+		Duration:        fmt.Sprintf("%.6f", req.Duration),
+	}
+	if profile.Colors < 2 {
+		profile.Colors = 256
+	}
+	if profile.FPS <= 0 {
+		profile.FPS = 20
+	}
+	if profile.SpeedMultiplier <= 0 {
+		profile.SpeedMultiplier = 1.0
+	}
+
+	estimated := converter.EstimateOutputSize(info, profile)
+	jsonOK(w, map[string]any{
+		"estimated_size":       estimated,
+		"estimated_size_human": converter.FormatBytes(estimated),
+	}, http.StatusOK)
 }
 
 func (s *Server) handleUI(w http.ResponseWriter, r *http.Request) {
